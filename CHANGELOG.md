@@ -4,6 +4,40 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.2 — 2026-10-18
+
+- **No screen rebuilds itself while a video plays.** The stats move every
+  few seconds then, and the library, the lists and the card were rebuilt
+  whole for each move — the library and the lists even while hidden. That
+  took the focus from rows and buttons, sent the library's scroll back to
+  the top, and kept every old row alive waiting for a picture never made
+  (memory that grew for as long as a film played). Now a hidden screen
+  draws nothing until it is shown; on screen, the facts and the watched
+  bar are written into the rows already there, and the lists rebuild only
+  when the numbers change which rows they hold. The card keeps the focus
+  on the button pressed, and its updates go through the opener's machine.
+  Sources writes a folder read's progress in place instead of rebuilding
+  every ~120 ms. Boxes waiting for a picture that left the page are let go.
+- **"Cannot play here" only when the browser says so.** A thumbnail read
+  that timed out or failed for any reason but "no decoder" (code 4) was
+  stored as unplayable for good; now it is tried again later and never
+  stored, and a video seen playing loses the mark. Removing a source stops
+  its pending reads, which stored orphan rows.
+- **Names**: an underscore no longer keeps a dotted name's dots
+  (`The.Expanse_S02E05`); release tags that are words (`Proper`, `Internal`,
+  `Multi`…) are cut only in the tail; a bare number ending a name with
+  spaces (`Death Race 2000`) or a year to come (`Blade Runner 2049`) stays
+  in the title; `DDP5.1x264` is not episode 264; `S01E01-E02`; subtitles
+  pair case-insensitively and with `_` / `-` (`movie.en`, `Movie_es`); a
+  small `.ts` is TypeScript.
+- **Subtitles**: UTF-16 files (Notepad's "Unicode") are read; short hours
+  and milliseconds are padded to valid WebVTT; a line of spaces ends a cue;
+  two reads of the same video's subtitles no longer leave orphan tracks.
+- **Texts**: names with `&`, `<` or quotes are no longer HTML-escaped in
+  notices; music leftovers in es, ja, pt, hi, ru, fr, de, zh, ar (曲,
+  "sonaba", "no encontrada", "silent for"…).
+- Tests: `names` (the cases above), `focus` (library, card, hidden, scroll).
+
 ## 1.0.1 — 2026-10-18
 
 - **Saving the queue as a list while a video plays keeps the focus in the

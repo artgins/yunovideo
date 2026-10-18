@@ -109,6 +109,11 @@ function setup_locale()
         fallbackLng:   "en",
         resources:     LOCALES,
         initImmediate: false,
+        /*  i18next escapes what it interpolates for HTML by default, and
+            here nothing it returns is ever HTML: every text goes into a
+            Text node (set_strings_are_text). Escaped, a folder called
+            "Tom & Jerry" is said as "Tom &amp;amp; Jerry". */
+        interpolation: {escapeValue: false},
     });
 
     apply_direction(code);

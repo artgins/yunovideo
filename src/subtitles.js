@@ -25,6 +25,16 @@
 
 function decode_text(buffer)
 {
+    /*  A byte-order mark says it outright. UTF-16 is what Windows
+        Notepad writes when told "Unicode": read as anything else it is
+        a NUL between every letter, and not one cue. */
+    const b = new Uint8Array(buffer, 0, Math.min(2, buffer.byteLength));
+    if(b.length === 2 && b[0] === 0xFF && b[1] === 0xFE) {
+        return new TextDecoder("utf-16le").decode(buffer);
+    }
+    if(b.length === 2 && b[0] === 0xFE && b[1] === 0xFF) {
+        return new TextDecoder("utf-16be").decode(buffer);
+    }
     try {
         return new TextDecoder("utf-8", {fatal: true}).decode(buffer);
     } catch(e) {
@@ -32,12 +42,23 @@ function decode_text(buffer)
     }
 }
 
+/*  A timestamp as WebVTT wants it: two digits of hours at least, and
+    exactly three of milliseconds — "0:00:01,5" is half a second past
+    one, and a cue whose time is not written that way is dropped. */
+function vtt_time(match, h, m, sec, ms)
+{
+    return h.padStart(2, "0") + ":" + m + ":" + sec + "." + ms.padEnd(3, "0");
+}
+
 function srt_to_vtt(text)
 {
     let body = String(text || "")
-        .replace(/^﻿/, "")
+        .replace(/^\uFEFF/, "")
         .replace(/\r\n?/g, "\n")
-        .replace(/(\d{1,2}:\d{2}:\d{2}),(\d{1,3})/g, "$1.$2")
+        /*  A line of spaces between two cues is the end of the first;
+            left as it is, the next cue's number joins its text. */
+        .replace(/^[ \t]+$/gm, "")
+        .replace(/(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/g, vtt_time)
         .trim();
     if(/^WEBVTT/.test(body)) {
         return body + "\n";

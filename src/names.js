@@ -47,26 +47,40 @@ const VIDEO_RE = /\.(mp4|m4v|webm|mkv|mov|ogv|avi|wmv|flv|3gp|3g2|mpe?g|ts|m2ts|
 const SUB_RE = /\.(srt|vtt)$/i;
 
 /*  The tail of a release name: everything from the first of these on
-    is about the encoding, not about the film. */
+    is about the encoding, not about the film. None of them is a word
+    a title is made of. */
 const NOISE_RE = new RegExp(
     "\\b(" + [
-        "2160p", "1440p", "1080p", "1080i", "720p", "576p", "480p", "4k", "uhd",
-        "hdr10?\\+?", "dv", "sdr", "x264", "x265", "h ?26[45]", "hevc", "avc",
+        "2160p", "1440p", "1080p", "1080i", "720p", "576p", "480p",
+        "hdr10\\+?", "x264", "x265", "h ?26[45]", "hevc",
         "xvid", "divx", "av1", "vp9", "10 ?bit",
-        "web(?:[- ]?dl|[- ]?rip)?", "bluray", "blu[- ]ray", "brrip", "bdrip",
-        "dvdrip", "dvd(?:scr|r)?", "hdtv", "hdrip", "hd ?cam", "telesync",
-        "aac(?:2 0)?", "ac3", "eac3", "dts(?:-hd)?", "ddp?5 1", "atmos", "truehd",
-        "proper", "repack", "remux", "extended", "unrated", "internal",
-        "multi", "dual", "subbed", "dubbed", "nf", "amzn", "dsnp", "hmax",
+        "web[- ]?dl", "web[- ]?rip", "bluray", "blu[- ]ray", "brrip", "bdrip",
+        "dvdrip", "dvdscr", "hdtv", "hdrip", "hdcam", "telesync",
+        "aac(?:2 0)?", "ac3", "eac3", "dts(?:-hd)?", "ddp?5 1x26[45]", "ddp?5 1", "truehd",
+        "amzn", "dsnp", "hmax",
     ].join("|") + ")\\b.*$",
     "i"
 );
 
+/*  Release tags that are also words — "The Proper Way", "Internal
+    Affairs", "The Multi Dimension". They are noise only where they stand
+    in the tail, right before the tags above ("Movie 2016 EXTENDED
+    1080p"); anywhere else they are part of the name. */
+const WEAK_NOISE_RE = new RegExp(
+    "(?:^|[ ._-])(" + [
+        "proper", "repack", "remux", "extended", "unrated", "internal",
+        "multi", "dual", "subbed", "dubbed", "nf", "dv", "sdr", "hdr", "avc",
+        "4k", "uhd", "dvdr?", "atmos",
+    ].join("|") + ")[ ._-]*$",
+    "i"
+);
+
 const EPISODE_PATTERNS = [
-    /*  S01E02, s1e2, S01.E02, S01 E02, S01E02E03 (the first one) */
-    /\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})(?:[Ee-]\d{1,3})?\b/,
-    /*  1x02, 01x02 */
-    /\b(\d{1,2})[xX](\d{2,3})\b/,
+    /*  S01E02, s1e2, S01.E02, S01 E02, S01E02E03, S01E01-E02,
+        S01E01-02 (the first one) */
+    /\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})(?:-?[Ee]\d{1,3}|-\d{1,3})?\b/,
+    /*  1x02, 01x02 — never x264 / x265, the codec ("DDP5.1x264") */
+    /\b(\d{1,2})[xX](?!26[45]\b)(\d{2,3})\b/,
     /*  Season 1 Episode 2, Temporada 1 Capitulo 2 */
     /\b(?:season|temporada|saison|staffel|stagione)[ ._-]*(\d{1,2})[ ._-]*(?:episode|episodio|cap[ií]tulo|cap|[ée]pisode|folge|ep)[ ._-]*(\d{1,3})\b/i,
 ];
@@ -79,8 +93,9 @@ const SEASON_DIR_RE = /^(?:season|temporada|saison|staffel|stagione|series|serie
 const BARE_EPISODE_RE = /^(?:e|ep|episode|episodio|cap[ií]tulo|cap|[ée]pisode|folge)?[ ._-]*(\d{1,3})(?:[ ._-]+(.*))?$/i;
 
 /*  Greedy on purpose: the LAST year is the release, the first may be
-    part of the name ("Blade Runner 2049 (2017)"). */
-const YEAR_RE = /^(.*)[ ._([-]+((?:19|20)\d{2})(?:[)\]]|\b)(.*)$/;
+    part of the name ("Blade Runner 2049 (2017)"). Groups: what comes
+    before, the separator, the year, a closing bracket, what follows. */
+const YEAR_RE = /^(.*)([ ._([-]+)((?:19|20)\d{2})([)\]]?)(?![\w])(.*)$/;
 
 
 /***************************************************************
@@ -100,14 +115,26 @@ function ext_of(name)
 
 /*  "The.Expanse_S02" → "The Expanse S02". Dots are only separators
     when the name has no spaces of its own: "Mr. Robot" keeps its dot,
-    "Mr.Robot.S01E01" was never meant to have one. */
+    "Mr.Robot.S01E01" was never meant to have one. An underscore is not
+    a space of its own: it is the other separator of the dotted style,
+    so it is asked about before it is turned into one. */
 function spaced(s)
 {
-    let out = String(s || "").replace(/_+/g, " ");
-    if(out.indexOf(" ") < 0 && (out.match(/\./g) || []).length >= 1) {
+    const raw = String(s || "");
+    let out = raw;
+    if(!/\s/.test(raw) && raw.indexOf(".") >= 0) {
         out = out.replace(/\.+/g, " ");
     }
-    return out.replace(/\s+/g, " ").trim();
+    return out.replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/*  A name written in the dotted style ("Arrival.2016"), where a bare
+    number at the end is a release year; in a name with spaces of its
+    own ("Death Race 2000") it is part of the title. */
+function dotted(s)
+{
+    const raw = String(s || "");
+    return !/\s/.test(raw) && /[._]/.test(raw);
 }
 
 /*  A leading "[Group]" is who ripped it, never what it is. */
@@ -126,7 +153,19 @@ function trim_seps(s)
 
 function denoise(s)
 {
-    return trim_seps(String(s || "").replace(NOISE_RE, ""));
+    const str = String(s || "");
+    const m = NOISE_RE.exec(str);
+    if(!m) {
+        return trim_seps(str);
+    }
+    /*  Cut at the tags, and at the word-like tags standing right before
+        them. */
+    let head = str.slice(0, m.index);
+    let w;
+    while((w = WEAK_NOISE_RE.exec(head)) && w.index + w[0].length === head.length) {
+        head = head.slice(0, w.index);
+    }
+    return trim_seps(head);
 }
 
 /*  Folder names along a path, without the file. */
@@ -141,13 +180,21 @@ function dirs_of(path)
 /***************************************************************
  *  Is this file a video, or a subtitle beside one?
  ***************************************************************/
+/*  Below this, a ".ts" is TypeScript, not a transport stream: a second
+    of the smallest broadcast video is already bigger. */
+const TS_MIN_BYTES = 256 * 1024;
+
 function is_video(f)
 {
     const name = (f && f.name) || "";
+    const typed = !!(f && f.type && f.type.indexOf("video/") === 0);
     if(VIDEO_RE.test(name)) {
+        if(/\.ts$/i.test(name) && !typed && typeof f.size === "number" && f.size < TS_MIN_BYTES) {
+            return false;
+        }
         return true;
     }
-    return !!(f && f.type && f.type.indexOf("video/") === 0);
+    return typed;
 }
 
 function is_subtitle(f)
@@ -222,13 +269,17 @@ function parse_name(path)
 
     /*  3. A film, a clip, anything else. A year in the name is kept as
         a fact and taken out of the title — unless it IS the title
-        ("1917", "2012"). */
+        ("1917", "2012"), or is not a release year at all: one still to
+        come ("Blade Runner 2049"), or a bare number ending a name with
+        spaces of its own ("Death Race 2000"). A year counts when it is
+        in brackets, when the release tags follow it, or when the name
+        is dotted ("Arrival.2016"). */
     let title = denoise(base) || base;
     let year = "";
-    const ym = YEAR_RE.exec(title);
-    if(ym && trim_seps(ym[1])) {
-        title = ym[1];
-        year = ym[2];
+    const ym = release_year(base, dotted(strip_ext(file)));
+    if(ym) {
+        title = ym.before;
+        year = ym.year;
     }
     title = denoise(title) || trim_seps(base) || file;
     return {
@@ -239,6 +290,29 @@ function parse_name(path)
         ep_title: "",
         year: year,
     };
+}
+
+/*  The release year in `base`, the last one that counts; null when
+    none does. */
+function release_year(base, is_dotted)
+{
+    const next_year = new Date().getFullYear() + 1;
+    let cut = base;
+    for(;;) {
+        const m = YEAR_RE.exec(cut);
+        if(!m) {
+            return null;
+        }
+        const before = trim_seps(m[1]);
+        const bracketed = /[([]/.test(m[2]) && m[4] !== "";
+        const followed = trim_seps(m[5]) !== "";
+        if(before && Number(m[3]) <= next_year && (bracketed || followed || is_dotted)) {
+            return {before: m[1], year: m[3]};
+        }
+        /*  That one does not count: maybe an earlier one does
+            ("Blade Runner 2049 (2017)" is found from the end). */
+        cut = m[1];
+    }
 }
 
 /*  The show an episode belongs to, from the folders above it: the
@@ -309,7 +383,7 @@ function pair_subtitles(videos, subs)
         const cands = by_dir.get(dir) || [];
         let hit = null;
         for(const c of cands) {
-            if(sbase === c.base || sbase.indexOf(c.base + ".") === 0) {
+            if(label_after(sbase, c.base) !== null) {
                 hit = c;
                 break;
             }
@@ -322,8 +396,8 @@ function pair_subtitles(videos, subs)
         if(!hit) {
             continue;
         }
-        let label = sbase === hit.base ? "" : sbase.slice(hit.base.length + 1);
-        if(sbase !== hit.base && sbase.indexOf(hit.base + ".") !== 0) {
+        let label = label_after(sbase, hit.base);
+        if(label === null) {
             label = sbase;
         }
         let arr = out.get(hit.path);
@@ -339,6 +413,22 @@ function pair_subtitles(videos, subs)
     return out;
 }
 
+
+/*  What a subtitle's name adds to its video's — "es" for Movie.es,
+    Movie_es, Movie-es or movie.ES —, "" when it adds nothing, null
+    when it is not that video's name at all. */
+function label_after(sbase, vbase)
+{
+    const s = sbase.toLowerCase();
+    const v = vbase.toLowerCase();
+    if(s === v) {
+        return "";
+    }
+    if(s.indexOf(v) === 0 && /[._-]/.test(s.charAt(v.length))) {
+        return sbase.slice(vbase.length + 1);
+    }
+    return null;
+}
 
 export {
     VIDEO_RE,

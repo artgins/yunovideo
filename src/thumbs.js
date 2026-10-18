@@ -37,8 +37,12 @@
 import {
     STORE_THUMBS, idb_all, idb_put, idb_del, idb_del_prefix,
 } from "./idb.js";
-import {resolve_file, set_thumb_lookup, key_of} from "./video_store.js";
+import {
+    resolve_file, set_thumb_lookup, key_of, find_video, subscribe, sounding, progress,
+    is_sounding,
+} from "./video_store.js";
 import {note_duration} from "./stats_store.js";
+import {diag} from "./diag.js";
 
 
 /***************************************************************
@@ -49,6 +53,18 @@ const QUALITY = 0.72;
 /*  A file that will not give up a frame in this long is not going to:
     a broken file, or a codec the decoder chokes on without saying so. */
 const GIVE_UP_MS = 12000;
+
+/*  MEDIA_ERR_SRC_NOT_SUPPORTED: no decoder in this browser for what is
+    in the file. The one failure that is a fact about the file. */
+const NOT_SUPPORTED = 4;
+
+/*  A read that failed for any other reason is tried again the next time
+    its row shows, this many times in a session, and never stored. */
+const TRIES = 2;
+
+/*  Boxes registered since the last sweep of the ones no longer on the
+    page. */
+const SWEEP_EVERY = 200;
 
 
 /***************************************************************
@@ -84,6 +100,8 @@ const S = {
     boxes:   new Map(),     // key -> Set of elements to paint when ready
     busy:    false,
     observer: null,
+    tried:   new Map(),     // key -> failed reads this session (not stored)
+    since_sweep: 0,
     made:    0,             // this session, for the diagnostics
     failed:  0,
 };
@@ -104,6 +122,22 @@ async function load_thumbs()
         }
     }
     set_thumb_lookup(thumb_url);
+    /*  "Cannot play here" is a verdict, and the player can overturn it:
+        a video that is seen playing is playable, whatever its frame
+        read said. */
+    subscribe(function(channel) {
+        if(channel !== "time") {
+            return;
+        }
+        const v = sounding();
+        if(v && is_unplayable(v) && is_sounding() && progress().current > 0) {
+            const key = key_of(v);
+            S.rows.delete(key);
+            idb_del(STORE_THUMBS, key);
+            diag("thumb_unbad", {});
+            emit();
+        }
+    });
     emit();
     return S.rows.size;
 }
@@ -160,6 +194,9 @@ function paint_thumb($box, video)
         $box.classList.toggle("is-bad", !!row.bad);
         return;
     }
+    if(++S.since_sweep >= SWEEP_EVERY) {
+        sweep();
+    }
     let set = S.boxes.get(key);
     if(!set) {
         set = new Set();
@@ -168,6 +205,30 @@ function paint_thumb($box, video)
     set.add($box);
     $box.__vid_video = video;
     observe($box);
+}
+
+/***************************************************************
+ *  Let go of the boxes that left the page. A box waits here for
+ *  its picture, and a picture is made only for a row that came
+ *  on screen: a list rebuilt with rows nobody scrolled to would
+ *  otherwise keep every old row alive, observed, for good.
+ ***************************************************************/
+function sweep()
+{
+    S.since_sweep = 0;
+    for(const [key, set] of S.boxes) {
+        for(const $box of set) {
+            if(!$box.isConnected) {
+                set.delete($box);
+                if(S.observer) {
+                    S.observer.unobserve($box);
+                }
+            }
+        }
+        if(!set.size) {
+            S.boxes.delete(key);
+        }
+    }
 }
 
 function fill($box, url)
@@ -209,7 +270,7 @@ function observe($box)
 function want(video)
 {
     const key = key_of(video);
-    if(!key || S.rows.has(key) || S.asked.has(key)) {
+    if(!key || S.rows.has(key) || S.asked.has(key) || (S.tried.get(key) || 0) >= TRIES) {
         return;
     }
     S.asked.add(key);
@@ -256,6 +317,7 @@ async function make(video)
     el.preload = "auto";
     el.playsInline = true;
     let row = {key: key, blob: null, dur: 0, w: 0, h: 0, bad: false};
+    let failure = null;
     try {
         el.src = url;
         await wait(el, "loadedmetadata");
@@ -269,18 +331,38 @@ async function make(video)
             row.blob = await frame(el, row.w, row.h);
         }
     } catch(e) {
-        /*  4 is "no decoder for this": the file is fine and this browser
-            cannot show it. Anything else (a timeout, a decode error) is
-            the same news for the user. */
-        row.bad = true;
+        failure = (e && e.media_code) || 0;
         S.failed++;
     } finally {
         el.removeAttribute("src");
         el.load();
         URL.revokeObjectURL(url);
     }
-    S.rows.set(key, row);
     S.asked.delete(key);
+
+    /*  The source went while this was reading: what was learned is
+        about a video the library no longer has, and storing it would
+        leave rows nobody can reach or erase. */
+    if(!find_video(video.source_id, video.path)) {
+        S.boxes.delete(key);
+        return;
+    }
+
+    if(failure !== null) {
+        diag("thumb_fail", {code: failure});
+        if(failure !== NOT_SUPPORTED) {
+            /*  A timeout, a decode or read error: a slow disk, or this
+                element starved by the film playing on the other one.
+                Not a fact about the file — nothing stored, and it is
+                asked again the next time its row shows. */
+            S.tried.set(key, (S.tried.get(key) || 0) + 1);
+            return;
+        }
+        /*  4 is "no decoder for this": the file is fine and this
+            browser cannot show it. That is remembered, and said. */
+        row.bad = true;
+    }
+    S.rows.set(key, row);
     if(row.blob) {
         S.made++;
     }
@@ -313,9 +395,13 @@ async function make(video)
 function wait(el, name)
 {
     return new Promise(function(resolve, reject) {
+        /*  `media_code`: the element's MediaError code, -1 for the
+            timeout. make() keeps only a NOT_SUPPORTED. */
         const timer = setTimeout(() => {
             done();
-            reject(new Error("timeout"));
+            const err = new Error("timeout");
+            err.media_code = -1;
+            reject(err);
         }, GIVE_UP_MS);
         const ok = () => {
             done();
@@ -323,7 +409,10 @@ function wait(el, name)
         };
         const fail = () => {
             done();
-            reject(new Error("media error " + ((el.error && el.error.code) || 0)));
+            const code = (el.error && el.error.code) || 0;
+            const err = new Error("media error " + code);
+            err.media_code = code;
+            reject(err);
         };
         const done = () => {
             clearTimeout(timer);
@@ -357,6 +446,24 @@ function frame(el, w, h)
 function drop_source_thumbs(source_id)
 {
     const prefix = source_id + "|";
+    /*  What was still to be read for it goes too; a read already under
+        way finds its video gone and stores nothing (see make). */
+    S.waiting = S.waiting.filter((v) => key_of(v).indexOf(prefix) !== 0);
+    for(const key of Array.from(S.asked)) {
+        if(key.indexOf(prefix) === 0) {
+            S.asked.delete(key);
+        }
+    }
+    for(const [key, set] of Array.from(S.boxes)) {
+        if(key.indexOf(prefix) === 0) {
+            for(const $box of set) {
+                if(S.observer) {
+                    S.observer.unobserve($box);
+                }
+            }
+            S.boxes.delete(key);
+        }
+    }
     for(const key of Array.from(S.rows.keys())) {
         if(key.indexOf(prefix) === 0) {
             S.rows.delete(key);
@@ -374,6 +481,11 @@ function drop_source_thumbs(source_id)
 function forget_bad(source_id)
 {
     const prefix = source_id + "|";
+    for(const key of Array.from(S.tried.keys())) {
+        if(key.indexOf(prefix) === 0) {
+            S.tried.delete(key);
+        }
+    }
     for(const [key, row] of Array.from(S.rows.entries())) {
         if(key.indexOf(prefix) === 0 && row.bad) {
             S.rows.delete(key);

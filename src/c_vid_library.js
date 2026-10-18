@@ -45,7 +45,7 @@ import {subscribe_sources, all_sources} from "./sources_store.js";
 import {subscribe_stats, heart} from "./stats_store.js";
 import {paint_thumb, subscribe_thumbs} from "./thumbs.js";
 import {open_card, card_action} from "./video_card.js";
-import {video_row} from "./rows.js";
+import {video_row, refresh_rows, mark_playing} from "./rows.js";
 import {count_pair} from "./plural.js";
 import {P, svg, ico, named, clear} from "./ui.js";
 
@@ -86,6 +86,7 @@ let PRIVATE_DATA = {
     query:    "",
     folder:   null,     // {source_id, path} — null: the list of sources
     show_id:  "",       // the series opened, "" for the list of them
+    shown:    true,     // on screen: created by the route that shows it
 };
 
 let __gclass__ = null;
@@ -481,9 +482,35 @@ function render_show(gobj)
 
 
 
+/*  Kept alive, so subscribed while hidden: hidden, nothing is
+    drawn — the route that shows it again renders it. On screen, the
+    numbers and the "playing" mark are written into the rows there;
+    only what changes the set of rows rebuilds it. A rebuild every
+    ten seconds while a film plays took the focus from the list and
+    left the old rows behind for pictures never made. */
 function ac_store(gobj, event, kw, src)
 {
-    render(gobj);
+    let priv = gobj.priv;
+    if(!priv.shown) {
+        return 0;
+    }
+    switch(kw.channel) {
+        case "stats":
+        case "thumbs":
+            if(!refresh_rows(priv.$content)) {
+                render(gobj);
+            }
+            break;
+        case "playing":
+        case "temp": {
+            let on = sounding();
+            mark_playing(priv.$content, on ? on.uid : 0);
+            break;
+        }
+        default:
+            render(gobj);
+            break;
+    }
     return 0;
 }
 
@@ -497,7 +524,8 @@ function ac_language_changed(gobj, event, kw, src)
 function ac_route_changed(gobj, event, kw, src)
 {
     let route = (kw && (kw.base || kw.route)) || "";
-    if(route === LIBRARY_ROUTE) {
+    gobj.priv.shown = (route === LIBRARY_ROUTE);
+    if(gobj.priv.shown) {
         take_request(gobj);
         render(gobj);
     }

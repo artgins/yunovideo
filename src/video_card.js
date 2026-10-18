@@ -24,7 +24,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
-import {createElement2, refresh_language, gobj_send_event} from "@yuneta/gobj-js";
+import {createElement2, refresh_language, gobj_send_event, log_error} from "@yuneta/gobj-js";
 import {
     yui_shell_register_overlay,
     yui_shell_overlay_dismissed,
@@ -52,6 +52,7 @@ let overlay = null;
 let opener = null;
 let uid_open = 0;
 let unsub = null;
+let shape = "";         // what the card shows, but the place: see card_shape
 /*  Escape is the shell's to route (its own stack, LIFO): the card asks
     for it while it is up and gives it back when it goes. */
 let on_escape = null;
@@ -85,7 +86,9 @@ function open_card(gobj, uid)
         on_escape = () => send("close");
         yui_shell_push_escape(shell, "modal", on_escape, () => close_card(true));
     }
-    unsub = subscribe_stats(() => paint());
+    /*  The numbers move while a video plays: the news enters the
+        opener's machine like a button press, and card_action() answers. */
+    unsub = subscribe_stats(() => send("stats"));
     paint();
     const $close = $backdrop.querySelector(".VID_CARD_CLOSE");
     if($close) {
@@ -150,10 +153,51 @@ function line(key, value)
 
 function button(cls, key, path, act, extra)
 {
-    return ["button", {class: "VID_QBTN button " + cls + (extra || ""), type: "button", ...named(key)}, [
+    return ["button", {class: "VID_QBTN button " + cls + (extra || ""), type: "button",
+                       "data-act": act, ...named(key)}, [
         ["span", {class: "VID_ICO"}, svg(path, 18)],
         ["span", {class: "VID_QLABEL", i18n: key}, t(key)]
     ], {click: () => send(act)}];
+}
+
+/*  Everything the card shows but the place, which moves every ten
+    seconds while this video plays and is written in place. */
+function card_shape(v)
+{
+    const info = thumb_info(v) || {};
+    const st = stats_of(v);
+    return JSON.stringify([
+        st.views, st.full, st.hearts, !!st.pos, info.dur || st.dur || 0,
+        is_unplayable(v), thumb_url(v), info.w || 0, info.h || 0,
+    ]);
+}
+
+/*  The numbers moved. A rebuild only when more than the place did,
+    and then the focus goes back to the button that had it: pressing
+    "give a heart" must leave the finger, and a reader, on it. */
+function refresh()
+{
+    const v = find_uid(uid_open);
+    if(!$open || !v) {
+        log_error("video_card: refresh with no card open");
+        return;
+    }
+    if(card_shape(v) !== shape) {
+        const $had = document.activeElement;
+        const act = ($had && $open.contains($had)) ? $had.getAttribute("data-act") : null;
+        paint();
+        const $back = act ? $open.querySelector(`[data-act="${act}"]:not(.is-hidden)`) : null;
+        const $to = $back || ((act !== null) ? $open.querySelector(".VID_CARD_CLOSE") : null);
+        if($to) {
+            $to.focus();
+        }
+        return;
+    }
+    const st = stats_of(v);
+    const $at = $open.querySelector(".VID_CARD_LEFTAT b");
+    if($at) {
+        $at.textContent = st.pos ? fmt_time(st.pos) : "—";
+    }
 }
 
 function paint()
@@ -164,6 +208,7 @@ function paint()
     }
     const $card = $open.querySelector(".VID_CARD");
     clear($card);
+    shape = card_shape(v);
 
     const info = thumb_info(v) || {};
     const st = stats_of(v);
@@ -202,18 +247,18 @@ function paint()
                 ["b", {}, String(st.hearts)],
                 ["span", {i18n: "hearts"}, t("hearts")]
             ]],
-            ["div", {class: "VID_CARD_NUM"}, [
+            ["div", {class: "VID_CARD_NUM VID_CARD_LEFTAT"}, [
                 ["b", {}, st.pos ? fmt_time(st.pos) : "—"],
                 ["span", {i18n: "left at"}, t("left at")]
             ]]
         ]],
         ["div", {class: "VID_CARD_ACTIONS"}, [
-            button("is-primary", "play", P.play, "play"),
-            button("", "add to queue", P.enqueue, "add"),
-            button("", "give a heart", P.heart, "heart"),
-            button("", "take a heart back", P.heart, "unheart", st.hearts ? "" : " is-hidden"),
-            button("", "forget the place", P.restart, "forget_place", st.pos ? "" : " is-hidden"),
-            button("is-danger is-light", "forget these counts", P.trash, "reset",
+            button("VID_CARD_PLAY is-primary", "play", P.play, "play"),
+            button("VID_CARD_ADD", "add to queue", P.enqueue, "add"),
+            button("VID_CARD_HEART", "give a heart", P.heart, "heart"),
+            button("VID_CARD_UNHEART", "take a heart back", P.heart, "unheart", st.hearts ? "" : " is-hidden"),
+            button("VID_CARD_FORGET", "forget the place", P.restart, "forget_place", st.pos ? "" : " is-hidden"),
+            button("VID_CARD_RESET is-danger is-light", "forget these counts", P.trash, "reset",
                    (st.views || st.hearts || st.pos) ? "" : " is-hidden"),
         ]],
         ["footer", {class: "VID_CARD_FOOT"}, [
@@ -238,6 +283,10 @@ function card_action(gobj, kw)
         close_card();
         return 0;
     }
+    if(act === "stats") {
+        refresh();
+        return 0;
+    }
     if(act === "play") {
         close_card();
         play_temp([v], 0);
@@ -251,6 +300,9 @@ function card_action(gobj, kw)
         forget_place(v);
     } else if(act === "reset") {
         stats_reset(v);
+    } else {
+        log_error(`video_card: unknown action: ${act}`);
+        return -1;
     }
     return 0;
 }

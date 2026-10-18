@@ -128,7 +128,7 @@ const en = {
         "last unexpected stop": "The app was stopped and started again",
         "browser discarded the app": "The browser threw the app away to make room.",
         "stopped while playing": "It stopped while this was playing:",
-        "silent for": "Silent for:",
+        "silent for": "Not running for:",
         "memory in use": "Memory in use:",
         "restarts today": "Restarts in the last 24 hours:",
         "unexpected stops today": "Unexpected stops in the last 24 hours:",

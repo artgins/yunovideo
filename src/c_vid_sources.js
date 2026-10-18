@@ -320,9 +320,7 @@ function build_source_row(gobj, s)
             ["span", {class: "VID_SPINNER", "aria-hidden": "true"}],
             ["span", {i18n: "reading"}, t("reading")]
         ];
-        if(total) {
-            line.push(["span", {}, st.loaded + " / " + total]);
-        }
+        line.push(["span", {class: "VID_SRCPROGRESS_COUNT"}, total ? st.loaded + " / " + total : ""]);
         state = ["div", {class: "VID_SRCSTATE VID_SRCPROGRESS", role: "status"}, [
             ["div", {class: "VID_SRCPROGRESS_LINE"}, line],
             ["div", {class: "VID_BAR"}, [
@@ -429,8 +427,34 @@ function fill_diagnostics(gobj)
 
 
 
+/*  A folder being read reports every ~120 ms. That moves a count and
+    a bar, written in place: a rebuild that often swallowed taps (the
+    press and the release landing on two different buttons) and shut
+    the diagnostics. Whatever else changes, the screen is rebuilt. */
+function paint_progress(gobj)
+{
+    let $p = gobj.priv.$content.querySelector(".VID_SRCPROGRESS");
+    let st = store_state();
+    if(!$p || !st.loading) {
+        return false;
+    }
+    let total = st.total || 0;
+    let $count = $p.querySelector(".VID_SRCPROGRESS_COUNT");
+    let $fill = $p.querySelector(".VID_BAR_FILL");
+    if(!$count || !$fill) {
+        return false;
+    }
+    $count.textContent = total ? st.loaded + " / " + total : "";
+    $fill.classList.toggle("is-indeterminate", !total);
+    $fill.style.width = total ? Math.round((st.loaded / total) * 100) + "%" : "";
+    return true;
+}
+
 function ac_store(gobj, event, kw, src)
 {
+    if(kw.channel === "loading" && paint_progress(gobj)) {
+        return 0;
+    }
     render(gobj);
     return 0;
 }

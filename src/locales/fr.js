@@ -130,7 +130,7 @@ const fr = {
         "last unexpected stop": "L’app s’est arrêtée puis relancée",
         "browser discarded the app": "Le navigateur a supprimé l’app pour libérer de la mémoire.",
         "stopped while playing": "Arrêtée pendant la lecture de :",
-        "silent for": "Silencieuse pendant :",
+        "silent for": "Inactive pendant :",
         "memory in use": "Mémoire utilisée :",
         "restarts today": "Redémarrages sur les 24 dernières heures :",
         "unexpected stops today": "Arrêts inattendus sur les 24 dernières heures :",

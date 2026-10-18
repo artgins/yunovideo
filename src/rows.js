@@ -25,9 +25,9 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
-import {gobj_send_event} from "@yuneta/gobj-js";
+import {gobj_send_event, createElement2} from "@yuneta/gobj-js";
 
-import {facts_of, fmt_time} from "./video_store.js";
+import {facts_of, fmt_time, find_uid} from "./video_store.js";
 import {stats_of, watched_fraction} from "./stats_store.js";
 import {paint_thumb, thumb_info, is_unplayable} from "./thumbs.js";
 import {P, svg, named} from "./ui.js";
@@ -115,7 +115,7 @@ function video_row(gobj, v, opts)
     const o = opts || {};
     const send = (ev) => () => gobj_send_event(gobj, ev, {uid: v.uid}, gobj);
     const bar = watched_bar(v);
-    return ["div", {class: "VID_ROW" + (o.playing ? " is-playing" : "")}, [
+    return ["div", {class: "VID_ROW" + (o.playing ? " is-playing" : ""), "data-uid": String(v.uid)}, [
         thumb_button(gobj, v, o.play || "EV_PLAY_ROW", "", o.ctx),
         ["div", {class: "VID_ROWBODY"}, [
             ["button", {class: "VID_NAME", type: "button", ...named("open the card")},
@@ -133,4 +133,50 @@ function video_row(gobj, v, opts)
 }
 
 
-export {video_row, thumb_button, meta_line, watched_bar, duration_of};
+/***************************************************************
+ *  What the stats and the pictures change on a row — the facts
+ *  under its name and the watched bar — written into the rows
+ *  already in `$scope`. Never a rebuild: those numbers move every
+ *  few seconds while a video plays, and a rebuild takes the focus
+ *  from whatever has it (a row's button, a name being typed) and
+ *  leaves the old rows behind for the pictures still to be made.
+ *
+ *  Returns false when a row names a video the library no longer
+ *  has: the list is out of step and the caller rebuilds it.
+ ***************************************************************/
+function refresh_rows($scope)
+{
+    for(const $row of $scope.querySelectorAll(".VID_ROW[data-uid]")) {
+        const v = find_uid(Number($row.getAttribute("data-uid")));
+        const $body = $row.querySelector(".VID_ROWBODY");
+        if(!v || !$body) {
+            return false;
+        }
+        const $meta = $body.querySelector(".VID_META");
+        if($meta) {
+            $meta.replaceWith(createElement2(meta_line(v)));
+        }
+        const $old = $body.querySelector(".VID_WATCHED");
+        const bar = watched_bar(v);
+        const $bar = bar ? createElement2(bar) : null;
+        if($old && $bar) {
+            $old.replaceWith($bar);
+        } else if($old) {
+            $old.remove();
+        } else if($bar) {
+            $body.appendChild($bar);
+        }
+    }
+    return true;
+}
+
+/*  Which row is the one on screen, said in place. */
+function mark_playing($scope, uid)
+{
+    for(const $row of $scope.querySelectorAll(".VID_ROW[data-uid]")) {
+        $row.classList.toggle("is-playing", Number($row.getAttribute("data-uid")) === uid);
+    }
+}
+
+
+export {video_row, thumb_button, meta_line, watched_bar, duration_of, refresh_rows, mark_playing};

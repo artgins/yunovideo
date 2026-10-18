@@ -144,6 +144,7 @@ const S = {
 
     /*  subtitles of the loaded video */
     subs:    [],        // [{label, lang, url, $track}]
+    subs_gen: 0,        // which read of the subtitles is the live one
     sub_on:  -1,
     sub_pref: null,     // "off" | a label | null (never chosen)
 };
@@ -1440,6 +1441,7 @@ function queue_position()
  ***************************************************************/
 function clear_subs()
 {
+    S.subs_gen++;
     for(const s of S.subs) {
         if(s.$track && s.$track.parentNode) {
             s.$track.parentNode.removeChild(s.$track);
@@ -1472,6 +1474,12 @@ async function load_subs(v)
         return;
     }
     const uid = v.uid;
+    /*  The uid is not enough to know this read is still wanted: the
+        same video can be loaded twice while the first read is under
+        way (a retry, the way back to the queue), and two reads of it
+        would both add their tracks — the first set orphaned on the
+        element, never removed, and maybe still showing. */
+    const gen = ++S.subs_gen;
     const out = [];
     for(const s of v.subs) {
         const f = await resolve_path(v.source_id, s.path);
@@ -1491,7 +1499,7 @@ async function load_subs(v)
             url: URL.createObjectURL(new Blob([vtt], {type: "text/vtt"})),
         });
     }
-    if(S.loaded_uid !== uid) {
+    if(S.loaded_uid !== uid || S.subs_gen !== gen) {
         for(const s of out) {
             URL.revokeObjectURL(s.url);
         }
@@ -1512,6 +1520,9 @@ async function load_subs(v)
     S.subs = out;
     if(S.sub_pref === null) {
         S.sub_pref = await pref_get("subs", null);
+        if(S.subs_gen !== gen) {
+            return;                 // cleared while the choice was read
+        }
     }
     let pick = -1;
     if(S.sub_pref && S.sub_pref !== "off") {

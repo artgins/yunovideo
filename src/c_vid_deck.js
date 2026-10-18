@@ -61,7 +61,7 @@ import {
 } from "./install_prompt.js";
 import {open_install} from "./install_dialog.js";
 import {open_card, card_action} from "./video_card.js";
-import {thumb_button, meta_line, watched_bar} from "./rows.js";
+import {thumb_button, meta_line, watched_bar, refresh_rows} from "./rows.js";
 import {toggle_fullscreen, toggle_pip, pip_supported, in_fullscreen} from "./screen.js";
 import {sub_label} from "./sub_label.js";
 import {count_pair} from "./plural.js";
@@ -699,41 +699,6 @@ function paint_queue(gobj)
     }
 }
 
-/***************************************************************
- *  What the stats and the pictures change: the facts under each
- *  name and the watched bar, written into the rows that are
- *  there. Never a rebuild: they arrive every few seconds while a
- *  video plays, and a rebuild takes the focus from whatever has
- *  it — the name being typed for a list, a row's button.
- ***************************************************************/
-function paint_queue_facts(gobj)
-{
-    let priv = gobj.priv;
-    for(const $row of priv.$queue.querySelectorAll(".VID_QROW")) {
-        let v = find_uid(Number($row.getAttribute("data-uid")));
-        let $body = $row.querySelector(".VID_ROWBODY");
-        if(!v || !$body) {
-            log_error(`${GCLASS_NAME}: queue row out of step: ${$row.getAttribute("data-uid")}`);
-            paint_queue(gobj);
-            return;
-        }
-        let $meta = $body.querySelector(".VID_META");
-        if($meta) {
-            $meta.replaceWith(createElement2(meta_line(v)));
-        }
-        let $old = $body.querySelector(".VID_WATCHED");
-        let bar = watched_bar(v);
-        let $bar = bar ? createElement2(bar) : null;
-        if($old && $bar) {
-            $old.replaceWith($bar);
-        } else if($old) {
-            $old.remove();
-        } else if($bar) {
-            $body.appendChild($bar);
-        }
-    }
-}
-
 function index_of_uid(uid)
 {
     return queue_tracks().findIndex((v) => v.uid === uid);
@@ -773,7 +738,11 @@ function ac_store(gobj, event, kw, src)
             break;
         case "stats":
         case "thumbs":
-            paint_queue_facts(gobj);
+            /*  The numbers on the rows, never the rows: see refresh_rows. */
+            if(!refresh_rows(gobj.priv.$queue)) {
+                log_error(`${GCLASS_NAME}: queue rows out of step, rebuilt`);
+                paint_queue(gobj);
+            }
             break;
         case "library":
             paint_meta(gobj);

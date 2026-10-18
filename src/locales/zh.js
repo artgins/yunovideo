@@ -126,7 +126,7 @@ const zh = {
         "last unexpected stop": "应用曾停止并重新启动",
         "browser discarded the app": "浏览器为腾出内存丢弃了本应用。",
         "stopped while playing": "停止时正在播放：",
-        "silent for": "静默时长：",
+        "silent for": "停止时长：",
         "memory in use": "已用内存：",
         "restarts today": "过去 24 小时内的重启次数：",
         "unexpected stops today": "过去 24 小时内的意外停止次数：",

@@ -128,7 +128,7 @@ const de = {
         "last unexpected stop": "Die App wurde beendet und neu gestartet",
         "browser discarded the app": "Der Browser hat die App verworfen, um Speicher freizugeben.",
         "stopped while playing": "Beendet, während das lief:",
-        "silent for": "Stumm für:",
+        "silent for": "Nicht aktiv für:",
         "memory in use": "Belegter Speicher:",
         "restarts today": "Neustarts in den letzten 24 Stunden:",
         "unexpected stops today": "Unerwartete Stopps in den letzten 24 Stunden:",

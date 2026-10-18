@@ -46,7 +46,7 @@ import {
 } from "./stats_store.js";
 import {confirm_replace} from "./confirm_replace.js";
 import {open_card, card_action} from "./video_card.js";
-import {video_row} from "./rows.js";
+import {video_row, refresh_rows, mark_playing} from "./rows.js";
 import {subscribe_thumbs} from "./thumbs.js";
 import {count_pair} from "./plural.js";
 import {P, svg, ico, named, clear} from "./ui.js";
@@ -58,6 +58,8 @@ import {t} from "i18next";
  *              Constants
  ***************************************************************/
 const GCLASS_NAME = "C_VID_LISTS";
+
+const LISTS_ROUTE = "/lists";
 
 const collator = new Intl.Collator(undefined, {sensitivity: "base", numeric: true});
 
@@ -77,6 +79,8 @@ let PRIVATE_DATA = {
     $content: null,
     open:     "",       // id of the saved list unfolded
     asking:   "",       // what is being asked: "places", "views", or "del:<id>"
+    shown:    true,     // on screen: created by the route that shows it
+    shape:    "",       // which rows the stats put on screen, at the last render
 };
 
 let __gclass__ = null;
@@ -132,6 +136,7 @@ function mt_start(gobj)
     let shell = yui_shell_of(gobj);
     if(shell) {
         gobj_subscribe_event(shell, "EV_LANGUAGE_CHANGED", {}, gobj);
+        gobj_subscribe_event(shell, "EV_ROUTE_CHANGED", {}, gobj);
     }
     render(gobj);
 }
@@ -208,12 +213,30 @@ function list_of(gobj, ctx)
     return [];
 }
 
+/*  Which rows the numbers decide: what is half watched, what is
+    loved, what is most watched, in their order, and how many of each
+    no longer resolve. While it holds, a change of the numbers is
+    written into the rows; when it moves, the screen is rebuilt. */
+function shape_of(gobj)
+{
+    const ids = (list) => list.map((v) => v.uid).join(",");
+    let cont = resolve_rows(in_progress());
+    let loved = resolve_rows(ranked("hearts"));
+    let watched = resolve_rows(ranked("views"));
+    return [
+        ids(list_of(gobj, "continue")), cont.missing,
+        ids(loved.videos), loved.missing,
+        ids(watched.videos), watched.missing,
+    ].join("|");
+}
+
 function render(gobj)
 {
     let priv = gobj.priv;
     let $c = priv.$content;
     let scroll = $c.scrollTop;
     clear($c);
+    priv.shape = shape_of(gobj);
 
     let nodes = [];
     nodes.push(["header", {class: "VID_SECHEAD"}, [
@@ -401,9 +424,48 @@ function section_ranked(gobj, ctx, by, title_key, empty_key)
 
 
 
+/*  Kept alive, so subscribed while hidden: hidden, nothing is
+    drawn — the route that shows it again renders it. On screen, a
+    change of the numbers that leaves the same rows is written into
+    them (see shape_of); a rebuild every ten seconds while a film
+    plays took the focus from the list and left the old rows behind
+    for pictures never made. */
 function ac_store(gobj, event, kw, src)
 {
-    render(gobj);
+    let priv = gobj.priv;
+    if(!priv.shown) {
+        return 0;
+    }
+    switch(kw.channel) {
+        case "stats":
+            if(shape_of(gobj) !== priv.shape || !refresh_rows(priv.$content)) {
+                render(gobj);
+            }
+            break;
+        case "thumbs":
+            if(!refresh_rows(priv.$content)) {
+                render(gobj);
+            }
+            break;
+        case "temp": {
+            let on = sounding();
+            mark_playing(priv.$content, on ? on.uid : 0);
+            break;
+        }
+        default:
+            render(gobj);
+            break;
+    }
+    return 0;
+}
+
+function ac_route_changed(gobj, event, kw, src)
+{
+    let route = (kw && (kw.base || kw.route)) || "";
+    gobj.priv.shown = (route === LISTS_ROUTE);
+    if(gobj.priv.shown) {
+        render(gobj);
+    }
     return 0;
 }
 
@@ -575,6 +637,7 @@ function create_gclass(gclass_name)
         ["ST_IDLE", [
             ["EV_STORE",            ac_store,           null],
             ["EV_LANGUAGE_CHANGED", ac_language_changed, null],
+            ["EV_ROUTE_CHANGED",    ac_route_changed,   null],
             ["EV_PLAY_ROW",         ac_play_row,        null],
             ["EV_PLAY_CTX",         ac_play_ctx,        null],
             ["EV_ADD_CTX",          ac_add_ctx,         null],
@@ -595,6 +658,7 @@ function create_gclass(gclass_name)
     const event_types = [
         ["EV_STORE",            0],
         ["EV_LANGUAGE_CHANGED", 0],
+        ["EV_ROUTE_CHANGED",    0],
         ["EV_PLAY_ROW",         0],
         ["EV_PLAY_CTX",         0],
         ["EV_ADD_CTX",          0],
