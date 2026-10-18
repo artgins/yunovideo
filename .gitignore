@@ -26,7 +26,6 @@ debug/
 node_modules/
 out/
 platforms/
-package-lock.json
 
 
 out/
@@ -39,7 +38,6 @@ debug/
 .hgtags
 /.hg/
 node_modules/
-package-lock.json
 *.deb
 *.po~
 _build/

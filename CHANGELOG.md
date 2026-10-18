@@ -4,6 +4,13 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.5 — 2026-10-18
+
+- `package-lock.json` is committed: it was ignored, so two builds of the same
+  commit could get different libraries within the `^` ranges.
+- The chunk size warning is set to 700 kB instead of 9000 (which silenced it):
+  today's bundle is ~530 kB, and the warning speaks if it grows by a third.
+
 ## 1.0.4 — 2026-10-18
 
 - **What happens outside the machine is no blind spot.** The stores are plain

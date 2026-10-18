@@ -100,7 +100,12 @@ export default defineConfig({
     build: {
         outDir: "dist",
         emptyOutDir: true,
-        chunkSizeWarningLimit: 9000,
+        /*  One bundle on purpose: the shell is precached whole for the
+            plane, and the only lazy chunk is the developer sheet's traces
+            panel. Vite's default of 500 kB warned on every build, so the
+            warning was read by nobody; this is today's size (~540 kB) with
+            room, and it speaks again if the bundle grows by a third. */
+        chunkSizeWarningLimit: 700,
     },
     server: {
         watch: {
