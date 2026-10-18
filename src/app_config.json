@@ -1,0 +1,388 @@
+{
+    "_comment": "yunovídeo shell. Four destinations, in the order they matter: Player (the deck: the picture and its transport first, then the queue you curate), Lists (continue watching, the queues you saved, loved and most watched), Library (three ways to look at the same videos — folders, series, all — switched by chips inside the view rather than by three routes) and Sources (the authorised folders, which is where the app explains what it does with your disk). The default route is the player. Rendered as a LEFT vertical rail on desktop and a BOTTOM icon-bar on mobile. The toolbar carries the brand, the language menu, the palette, the theme toggle and a 'more' menu (developer, site map, help), all as events the host acts on. It does NOT carry the pickers: adding videos is Sources' job, and one door is better than three. No backend: a pure gobj tree with hash routing.",
+    "shell": {
+        "remember_section_position": true,
+        "breakpoints": "bulma",
+        "zones": {
+            "top": {
+                "host": "toolbar",
+                "show_on": "*"
+            },
+            "left": {
+                "host": "menu.primary",
+                "show_on": ">=desktop"
+            },
+            "bottom": {
+                "host": "menu.primary",
+                "show_on": "<desktop"
+            },
+            "center": {
+                "host": "stage.main"
+            }
+        },
+        "stages": {
+            "main": {
+                "zone": "center",
+                "default_route": "/player"
+            }
+        }
+    },
+    "toolbar": {
+        "zone": "top",
+        "aria_label": "Yunovídeo",
+        "items": [
+            {
+                "id": "brand",
+                "type": "brand",
+                "logo": "./yunovideo-mark.svg",
+                "wordmark": "Yunovídeo",
+                "alt": "Yunovídeo",
+                "aria_label": "player",
+                "action": {
+                    "type": "navigate",
+                    "route": "/player"
+                }
+            },
+            {
+                "id": "language",
+                "icon": "yi-language",
+                "align": "end",
+                "aria_label": "language",
+                "tooltip": "language",
+                "action": {
+                    "type": "dropdown",
+                    "items": [
+                        {
+                            "id": "lang-es",
+                            "name": "Español",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "es"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-en",
+                            "name": "English",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "en"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-zh",
+                            "name": "中文",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "zh"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-hi",
+                            "name": "हिन्दी",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "hi"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-ar",
+                            "name": "العربية",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "ar"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-pt",
+                            "name": "Português",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "pt"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-ru",
+                            "name": "Русский",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "ru"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-ja",
+                            "name": "日本語",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "ja"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-de",
+                            "name": "Deutsch",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "de"
+                                }
+                            }
+                        },
+                        {
+                            "id": "lang-fr",
+                            "name": "Français",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_LOCALE",
+                                "kw": {
+                                    "locale": "fr"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "id": "palette",
+                "icon": "vi-palette",
+                "align": "end",
+                "aria_label": "colours",
+                "tooltip": "colours",
+                "action": {
+                    "type": "dropdown",
+                    "items": [
+                        {
+                            "id": "pal-auto",
+                            "name": "palette auto",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_PALETTE",
+                                "kw": {
+                                    "palette": "auto"
+                                }
+                            }
+                        },
+                        {
+                            "id": "pal-gold",
+                            "name": "palette gold",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_PALETTE",
+                                "kw": {
+                                    "palette": "gold"
+                                }
+                            }
+                        },
+                        {
+                            "id": "pal-ice",
+                            "name": "palette ice",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_PALETTE",
+                                "kw": {
+                                    "palette": "ice"
+                                }
+                            }
+                        },
+                        {
+                            "id": "pal-rose",
+                            "name": "palette rose",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_PALETTE",
+                                "kw": {
+                                    "palette": "rose"
+                                }
+                            }
+                        },
+                        {
+                            "id": "pal-leaf",
+                            "name": "palette leaf",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_PALETTE",
+                                "kw": {
+                                    "palette": "leaf"
+                                }
+                            }
+                        },
+                        {
+                            "id": "pal-aurora",
+                            "name": "palette aurora",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_PALETTE",
+                                "kw": {
+                                    "palette": "aurora"
+                                }
+                            }
+                        },
+                        {
+                            "id": "pal-dusk",
+                            "name": "palette dusk",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_SET_PALETTE",
+                                "kw": {
+                                    "palette": "dusk"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "id": "theme",
+                "icon": "yi-moon",
+                "align": "end",
+                "aria_label": "theme",
+                "tooltip": "theme",
+                "action": {
+                    "type": "event",
+                    "event": "EV_TOGGLE_THEME"
+                }
+            },
+            {
+                "id": "more",
+                "icon": "yi-ellipsis",
+                "align": "end",
+                "aria_label": "more",
+                "tooltip": "more",
+                "action": {
+                    "type": "dropdown",
+                    "items": [
+                        {
+                            "id": "more-developer",
+                            "name": "developer",
+                            "icon": "yi-bug",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_OPEN_DEVELOPER"
+                            }
+                        },
+                        {
+                            "id": "more-sitemap",
+                            "name": "site map",
+                            "icon": "yi-sitemap",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_OPEN_SITEMAP"
+                            }
+                        },
+                        {
+                            "id": "more-help",
+                            "name": "help",
+                            "icon": "yi-question",
+                            "action": {
+                                "type": "event",
+                                "event": "EV_OPEN_ABOUT"
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "menu": {
+        "primary": {
+            "render": {
+                "left": {
+                    "layout": "vertical",
+                    "icon_pos": "left",
+                    "show_label": true
+                },
+                "bottom": {
+                    "layout": "icon-bar",
+                    "icon_pos": "top",
+                    "show_label": true
+                }
+            },
+            "items": [
+                {
+                    "id": "player",
+                    "name": "player",
+                    "icon": "vi-player",
+                    "tooltip": "player",
+                    "route": "/player",
+                    "target": {
+                        "stage": "main",
+                        "gclass": "C_VID_DECK",
+                        "lifecycle": "keep_alive",
+                        "kw": {
+                            "title": "player"
+                        }
+                    }
+                },
+                {
+                    "id": "lists",
+                    "name": "lists",
+                    "icon": "vi-lists",
+                    "tooltip": "lists",
+                    "route": "/lists",
+                    "target": {
+                        "stage": "main",
+                        "gclass": "C_VID_LISTS",
+                        "lifecycle": "keep_alive",
+                        "kw": {
+                            "title": "lists"
+                        }
+                    }
+                },
+                {
+                    "id": "library",
+                    "name": "library",
+                    "icon": "vi-library",
+                    "tooltip": "library",
+                    "route": "/library",
+                    "target": {
+                        "stage": "main",
+                        "gclass": "C_VID_LIBRARY",
+                        "lifecycle": "keep_alive",
+                        "kw": {
+                            "view": "folders",
+                            "title": "library"
+                        }
+                    }
+                },
+                {
+                    "id": "sources",
+                    "name": "sources",
+                    "icon": "vi-folder",
+                    "tooltip": "sources",
+                    "route": "/sources",
+                    "target": {
+                        "stage": "main",
+                        "gclass": "C_VID_SOURCES",
+                        "lifecycle": "keep_alive",
+                        "kw": {
+                            "title": "sources"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

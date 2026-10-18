@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Yunovídeo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#101418">
+    <meta name="description" content="Tus vídeos, donde los dejaste. Se leen aquí, en el dispositivo: tus ficheros no se copian ni se suben.">
+    <link rel="icon" href="./yunovideo-mark.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <!--
+        The manifest is what makes this an INSTALLED app rather than a
+        shortcut, and that distinction decides whether folder permissions
+        survive: Chrome only offers "Allow on every visit" for File System
+        Access to installed apps. Without it, Android re-asks for every
+        folder on every launch.
+    -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <!--
+        Who gets to ask about installing.
+
+        Chrome's own install banner is offered by a heuristic, and that
+        heuristic goes silent on an origin for about three months after
+        the banner is dismissed — or after the app is installed and then
+        removed. A reinstall therefore tends to find no banner at all and
+        only the browser menu, which is not where anyone looks.
+
+        So the browser's banner is refused here and the event is kept.
+        This must run before the bundle: the event can fire while the
+        module graph is still loading, and an event nobody caught cannot
+        be asked for back. The app does the asking itself, from
+        install_prompt.js.
+    -->
+    <script>
+    (function () {
+        "use strict";
+        window.__yunovideo_install = null;
+        window.addEventListener("beforeinstallprompt", function (ev) {
+            ev.preventDefault();
+            window.__yunovideo_install = ev;
+            window.dispatchEvent(new CustomEvent("yunovideo:installable"));
+        });
+    })();
+    </script>
+    <!--
+        Theme, resolved before the first paint so there is no flash.
+        Video is watched dark, so that is the default when the OS
+        expresses no preference. Stored under the same "myst:theme" key the
+        rest of the yuneta family uses.
+    -->
+    <script>
+    (function () {
+        "use strict";
+        var theme = null;
+        try {
+            var stored = localStorage.getItem("myst:theme");
+            if(stored === "dark" || stored === "light") {
+                theme = stored;
+            }
+        } catch (e) {
+            theme = null;
+        }
+        if(!theme) {
+            theme = (window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: light)").matches)
+                ? "light" : "dark";
+        }
+        document.documentElement.setAttribute("data-theme", theme);
+    })();
+    </script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -67,6 +67,6 @@ doctrees/
 build/
 .~lock.*
 
-# tests: generated MP3 fixtures and screenshots, not sources
+# tests: generated video fixtures and screenshots, not sources
 tests/fixtures/
 tests/out/
