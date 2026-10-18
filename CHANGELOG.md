@@ -4,6 +4,15 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.1 — 2026-10-18
+
+- **Saving the queue as a list while a video plays keeps the focus in the
+  name box.** The stats move every few seconds then (a view counted, the
+  place written), and the queue was rebuilt whole for each of them, so the
+  box lost the focus mid-word and the keyboard closed on a phone. The stats
+  and the pictures now write the facts and the watched bar into the rows
+  that are there. New test: `focus`.
+
 ## 1.0.0 — 2026-10-18
 
 First version: yunomúsica's philosophy, for video.

@@ -42,7 +42,8 @@ const TESTS = [
     {name: "templist",  what: "playing from the library leaves the queue alone"},
     {name: "names_dom", what: "no control without title and aria-label, two languages"},
     {name: "fitmobile", what: "nothing runs off a phone's width"},
-    {name: "offline",   what: "no network: it boots and plays from the device"}
+    {name: "offline",   what: "no network: it boots and plays from the device"},
+    {name: "focus",     what: "typing a list's name while a video plays keeps the focus"}
 ];
 
 

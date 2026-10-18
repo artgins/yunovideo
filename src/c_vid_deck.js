@@ -665,7 +665,8 @@ function paint_queue(gobj)
         let playing = (i === qi) && !temp;
         let bar = watched_bar(v);
         const kw = {uid: v.uid};
-        return ["div", {class: "VID_ROW VID_QROW" + (playing ? " is-playing" : "")}, [
+        return ["div", {class: "VID_ROW VID_QROW" + (playing ? " is-playing" : ""),
+                        "data-uid": String(v.uid)}, [
             thumb_button(gobj, v, "EV_PLAY_AT"),
             ["div", {class: "VID_ROWBODY"}, [
                 ["button", {class: "VID_NAME", type: "button", ...named("open the card")},
@@ -695,6 +696,41 @@ function paint_queue(gobj)
     let $list = $q.querySelector(".VID_QLIST");
     if($list) {
         $list.scrollTop = scroll;
+    }
+}
+
+/***************************************************************
+ *  What the stats and the pictures change: the facts under each
+ *  name and the watched bar, written into the rows that are
+ *  there. Never a rebuild: they arrive every few seconds while a
+ *  video plays, and a rebuild takes the focus from whatever has
+ *  it — the name being typed for a list, a row's button.
+ ***************************************************************/
+function paint_queue_facts(gobj)
+{
+    let priv = gobj.priv;
+    for(const $row of priv.$queue.querySelectorAll(".VID_QROW")) {
+        let v = find_uid(Number($row.getAttribute("data-uid")));
+        let $body = $row.querySelector(".VID_ROWBODY");
+        if(!v || !$body) {
+            log_error(`${GCLASS_NAME}: queue row out of step: ${$row.getAttribute("data-uid")}`);
+            paint_queue(gobj);
+            return;
+        }
+        let $meta = $body.querySelector(".VID_META");
+        if($meta) {
+            $meta.replaceWith(createElement2(meta_line(v)));
+        }
+        let $old = $body.querySelector(".VID_WATCHED");
+        let bar = watched_bar(v);
+        let $bar = bar ? createElement2(bar) : null;
+        if($old && $bar) {
+            $old.replaceWith($bar);
+        } else if($old) {
+            $old.remove();
+        } else if($bar) {
+            $body.appendChild($bar);
+        }
     }
 }
 
@@ -732,10 +768,12 @@ function ac_store(gobj, event, kw, src)
             paint_all(gobj);
             break;
         case "queue":
-        case "stats":
-        case "thumbs":
             paint_queue(gobj);
             paint_stage(gobj);
+            break;
+        case "stats":
+        case "thumbs":
+            paint_queue_facts(gobj);
             break;
         case "library":
             paint_meta(gobj);
