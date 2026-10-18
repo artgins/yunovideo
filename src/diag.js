@@ -243,6 +243,9 @@ function beat()
         try {
             state = probe() || {};
         } catch(e) {
+            /*  The probe is the app's; a throw there is its bug. Said in
+                the console, not through the logger this box backs up. */
+            console.warn("diag: the state probe threw", e);
             state = {};
         }
     }
@@ -375,7 +378,7 @@ function sample_memory()
                 d.pos = state.pos || 0;
             }
         } catch(e) {
-            /* nothing */
+            console.warn("diag: the state probe threw", e);
         }
     }
     if(Object.keys(d).length) {

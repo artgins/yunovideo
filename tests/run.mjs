@@ -37,6 +37,7 @@ const PORT = Number(new URL(process.env.YUNOVIDEO_URL || "http://localhost:4322/
 const TESTS = [
     {name: "names",     what: "what a file name says: show, season, episode, year"},
     {name: "locales",   what: "ten catalogues: no gaps, no lost placeholders"},
+    {name: "rescan",    what: "a rescan leaves the deck as it was, less what left"},
     {name: "e2e",       what: "the walk: add, library, play, queue, subtitles, reload"},
     {name: "resume",    what: "every video comes back where it was left, after a kill"},
     {name: "templist",  what: "playing from the library leaves the queue alone"},

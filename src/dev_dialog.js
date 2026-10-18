@@ -22,7 +22,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
-import {createElement2, refresh_language} from "@yuneta/gobj-js";
+import {createElement2, refresh_language, log_error, log_warning} from "@yuneta/gobj-js";
 
 import {yui_shell_show_modal} from "@yuneta/gobj-ui/src/shell_modals.js";
 import {named} from "./ui.js";
@@ -107,7 +107,7 @@ function open_developer(shell)
                 try {
                     dispose_traces();
                 } catch(e) {
-                    /* nothing */
+                    log_error(`dev_dialog: the traces panel failed to close: ${(e && e.stack) || e}`);
                 }
                 dispose_traces = null;
             }
@@ -141,6 +141,7 @@ function load_traces($pane)
         $pane.appendChild(panel.$el);
         dispose_traces = panel.dispose;
     }).catch(function(err) {
+        log_warning(`dev_dialog: the traces panel did not load: ${(err && err.message) || err}`);
         clear($pane);
         $pane.appendChild(createElement2(
             ["p", {class: "VID_DEV_WAIT"}, String((err && err.message) || err)]
@@ -278,16 +279,27 @@ function build_verdict()
 function copy_report($btn)
 {
     let text = diag_report();
+    /*  Back to its own label, by its key: the text on the button may be
+        "Copied" still, from a press a moment ago. */
     let done = function() {
-        let was = $btn.textContent;
         $btn.textContent = t("copied");
-        setTimeout(() => { $btn.textContent = was; }, 1500);
+        setTimeout(function() {
+            $btn.textContent = t($btn.getAttribute("data-i18n") || "copy");
+        }, 1500);
+    };
+    let by_hand = function() {
+        if(fallback(text)) {
+            done();
+        }
     };
     if(navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, () => fallback(text));
+        navigator.clipboard.writeText(text).then(done, function(e) {
+            log_warning(`dev_dialog: the clipboard refused: ${(e && e.name) || e}`);
+            by_hand();
+        });
         return;
     }
-    fallback(text);
+    by_hand();
 }
 
 function fallback(text)
@@ -299,12 +311,17 @@ function fallback(text)
     $ta.style.opacity = "0";
     document.body.appendChild($ta);
     $ta.select();
+    let ok = false;
     try {
-        document.execCommand("copy");
+        ok = document.execCommand("copy");
     } catch(e) {
-        /* nothing: the text is selected, the user can take it */
+        ok = false;
     }
     document.body.removeChild($ta);
+    if(!ok) {
+        log_warning("dev_dialog: the report could not be copied");
+    }
+    return ok;
 }
 
 

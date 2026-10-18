@@ -4,6 +4,38 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.3 — 2026-10-18
+
+- **A rescan leaves the queue as it was.** It used to take that source's
+  videos off the queue, stop the one playing and, the queue left empty,
+  pour the whole folder onto it in walk order. Now the queue keeps its
+  videos, order and place, playing on; only what left the folder leaves it.
+- **Every row's buttons are named by the row** for a screen reader — "Play
+  Arrival", "Open folder Season 1", "Rescan Films" — instead of the same
+  "Play" or "Open the card" two thousand times. The control is labelled by
+  itself and by the row's text (`aria-labelledby`), as gobj-ui names a
+  control with its badge, so it changes language with everything else.
+- **The card's counts agree with their figure**: "1 view", "1 Heart",
+  "2 просмотра", in the ten languages.
+- **Fullscreen on an iPhone** goes to the system player (the only
+  fullscreen it has for a video); where there is none the button is hidden.
+- **The library no longer gets stuck** in a source that was removed while
+  it was open there.
+- **What the video element says enters the machine**: its metadata, ready,
+  end and error, the system's media keys (headset, lock screen), the root's
+  timers and the accent picture's load are all events now, answered in an
+  action — the machine trace shows them. The end of a video is counted in
+  the stats before the next one loads, in that order, by the action.
+- **No silent failures**: play() refusals, fullscreen/PiP refusals, seeks,
+  subtitle reads, permission queries, the folder picker, a scan that threw,
+  the diagnostics and the replace question are all logged. An IndexedDB
+  write now answers when its transaction completes, so a quota refusal is a
+  failure and not a success; opening the database and its failures are
+  logged. The developer sheet's Copy no longer sticks on "Copied", and says
+  when the copy failed.
+- Tests: `rescan` (new, in node), `names_dom` (row names, in Spanish),
+  `focus` (the card's singular).
+
 ## 1.0.2 — 2026-10-18
 
 - **No screen rebuilds itself while a video plays.** The stats move every

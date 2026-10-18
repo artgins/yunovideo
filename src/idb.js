@@ -26,6 +26,8 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {log_warning} from "@yuneta/gobj-js";
+
 
 const DB_NAME = "yunovideo";
 const DB_VERSION = 1;
@@ -100,6 +102,7 @@ function open_db()
         try {
             req = indexedDB.open(DB_NAME, DB_VERSION);
         } catch(e) {
+            log_warning(`idb: cannot open the database: ${(e && e.name) || e}`);
             resolve(null);
             return;
         }
@@ -151,6 +154,7 @@ function open_db()
             resolve(db);
         };
         req.onerror = function() {
+            log_warning(`idb: the database refused to open: ${(req.error && req.error.name) || "?"}`);
             answered = true;
             resolve(null);
         };
@@ -164,6 +168,7 @@ function open_db()
                 stays queued until the other tab closes, and a caller
                 that awaited it would hang for as long as that took. The
                 request itself is kept — it is what repairs us. */
+            log_warning("idb: blocked by another tab on an older version");
             blocked = true;
             answered = true;
             resolve(null);
@@ -173,34 +178,52 @@ function open_db()
 }
 
 
+/***************************************************************
+ *  One request in its own transaction. A read answers when its
+ *  request succeeds. A WRITE answers when its transaction is
+ *  complete, and not before: a quota refusal aborts the
+ *  transaction AFTER the request said success, and answering
+ *  then reported a write that never landed as one that did.
+ *  Every failure is logged, with the store and the reason.
+ ***************************************************************/
 function run(store_name, mode, fn)
 {
     return open_db().then(function(db) {
         if(!db) {
+            /*  No database (refused, or blocked by an older tab): said
+                once where it is opened. */
             return null;
         }
         return new Promise(function(resolve) {
+            const fail = (what, e) => {
+                log_warning(`idb: ${what} on ${store_name} failed: ${(e && (e.name || e.message)) || e}`);
+                resolve(null);
+            };
             let tx;
             try {
                 tx = db.transaction(store_name, mode);
             } catch(e) {
-                resolve(null);
+                fail("transaction", e);
                 return;
             }
             let req;
             try {
                 req = fn(tx.objectStore(store_name));
             } catch(e) {
-                resolve(null);
+                fail("request", e);
                 return;
             }
-            if(!req) {                      // a write we do not read back
-                tx.oncomplete = () => resolve(true);
-                tx.onerror = () => resolve(null);
+            if(mode === "readwrite") {
+                tx.oncomplete = function() {
+                    resolve((req && req.result !== undefined) ? req.result : true);
+                };
+                /*  A failed request aborts its transaction (its error is
+                    not cancelled here, on purpose): the abort answers. */
+                tx.onabort = () => fail("write (aborted)", tx.error);
                 return;
             }
             req.onsuccess = () => resolve(req.result);
-            req.onerror = () => resolve(null);
+            req.onerror = () => fail("read", req.error);
         });
     });
 }
@@ -308,7 +331,10 @@ function request_persistence()
     }
     return navigator.storage.persisted()
         .then((already) => already ? true : navigator.storage.persist())
-        .catch(() => false);
+        .catch(function(e) {
+            log_warning(`idb: persistent storage could not be asked for: ${(e && e.name) || e}`);
+            return false;
+        });
 }
 
 function storage_persisted()
@@ -317,7 +343,10 @@ function storage_persisted()
             !navigator.storage.persisted) {
         return Promise.resolve(null);       // the browser will not say
     }
-    return navigator.storage.persisted().catch(() => null);
+    return navigator.storage.persisted().catch(function(e) {
+        log_warning(`idb: persisted() failed: ${(e && e.name) || e}`);
+        return null;
+    });
 }
 
 

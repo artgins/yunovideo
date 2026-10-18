@@ -41,6 +41,8 @@ import {
     resolve_file, set_thumb_lookup, key_of, find_video, subscribe, sounding, progress,
     is_sounding,
 } from "./video_store.js";
+import {log_warning} from "@yuneta/gobj-js";
+
 import {note_duration} from "./stats_store.js";
 import {diag} from "./diag.js";
 
@@ -301,6 +303,7 @@ async function make(video)
     try {
         file = await resolve_file(video);
     } catch(e) {
+        log_warning(`thumbs: cannot reach ${video.path}: ${(e && e.name) || e}`);
         file = null;
     }
     if(!file) {

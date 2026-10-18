@@ -31,6 +31,7 @@ import {
     gobj_get_gclass_trace_level2,
     gclass_find_by_name,
     set_strings_are_text,
+    log_warning,
 } from "@yuneta/gobj-js";
 
 import {register_c_yui_shell} from "@yuneta/gobj-ui/src/c_yui_shell.js";
@@ -97,8 +98,10 @@ function restore_traces()
     }
     import("@yuneta/gobj-ui/src/yui_dev.js").then(function(mod) {
         mod.apply_dev_traces();
-    }).catch(function() {
-        /*  No panel, no traces: not worth a word on screen. */
+    }).catch(function(e) {
+        /*  No panel, no traces: not worth a word on screen, one in the
+            console. */
+        log_warning(`main: the developer traces did not load: ${(e && e.message) || e}`);
     });
 }
 

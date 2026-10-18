@@ -63,7 +63,6 @@ const zh = {
         "look inside": "查看内容",
         "source": "来源",
         "loved": "喜欢的",
-        "hearts": "喜欢",
         "give a heart": "点一个喜欢",
         "forget these counts": "忘记这些计数",
         "authorised sources": "已授权的文件夹",
@@ -254,7 +253,6 @@ const zh = {
         "size": "大小",
         "duration": "时长",
         "picture": "画面",
-        "views": "次观看",
         "to the end": "看完",
         "left at": "停在",
         "take a heart back": "收回一颗心",
@@ -289,6 +287,8 @@ const zh = {
 
         /*  ---- counts: every CLDR form the language has ---- */
         "n videos_other": "个视频",
+        "n views_other": "次观看",
+        "n hearts_other": "喜欢",
         "n episodes_other": "集",
         "n seasons_other": "季",
     },

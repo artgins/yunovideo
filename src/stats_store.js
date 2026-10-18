@@ -370,8 +370,6 @@ function start_counting()
         if(channel === "time" || channel === "playing" || channel === "queue" ||
                 channel === "temp") {
             tick(channel);
-        } else if(channel === "ended") {
-            ended();
         }
     });
 }
@@ -452,8 +450,11 @@ function place_now()
 }
 
 /*  Played to the end: one more full view, and no place — the next time
-    it starts at the start. */
-function ended()
+    it starts at the start. Called by the root's action for the
+    element's "ended", BEFORE it moves on to the next video: heard as a
+    store channel it could arrive after the next one was loaded, and be
+    written onto that one. */
+function note_ended()
 {
     if(!S.key) {
         return;
@@ -520,4 +521,5 @@ export {
     drop_source_stats,
     note_duration,
     flush_places,
+    note_ended,
 };

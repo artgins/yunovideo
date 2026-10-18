@@ -42,11 +42,22 @@
  *          "temp"      the temporary list started, moved, or ended
  *          "said"      what the last add to the deck did
  *          "subs"      the subtitles of the loaded video changed
- *          "ended"     a video played to its end (before the next one)
+ *
+ *      And what the ELEMENT says, which the app's root turns into an
+ *      event and answers by calling back here (on_metadata, on_canplay,
+ *      on_ended, on_media_error): the browser is the operating system,
+ *      and what it notifies enters the machine before anything is done
+ *      about it.
+ *          "metadata"  the loaded video's length and size are known
+ *          "canplay"   it can be played
+ *          "ended"     it played to its end
+ *          "error"     the element could not read or decode it
  *
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {log_warning} from "@yuneta/gobj-js";
+
 import {pref_get, pref_set} from "./idb.js";
 import {diag} from "./diag.js";
 import {is_video, is_subtitle, parse_name, pair_subtitles, code} from "./names.js";
@@ -116,6 +127,7 @@ const S = {
     loaded_uid: 0,      // uid of the video whose file is ON the element
     autoplay_intent: false,
     retry_for: 0,
+    el_error: 0,        // MediaError code of the element's last "error"
     resolve_denied: false,
     ac:      null,
     rate:    1,
@@ -339,6 +351,7 @@ async function resolve_path(source_id, path)
         return await file_resolver({source_id: source_id, path: path});
     } catch(e) {
         S.resolve_denied = !!e && e.name === "NotAllowedError";
+        log_warning(`video_store: cannot reach ${path}: ${(e && e.name) || e}`);
         return null;
     }
 }
@@ -358,11 +371,11 @@ function drop_source_tracks(source_id)
     if(!source_id) {
         return;
     }
+    /*  The deck is looked at even when the library had none of it: a
+        source removed during a rescan has already left the library
+        (unlist_source_tracks) but not the deck. */
     const before = S.videos.length;
     S.videos = S.videos.filter((v) => v.source_id !== source_id);
-    if(S.videos.length === before) {
-        return;
-    }
     const cur = S.queue[S.qi] || null;
     const kept = S.queue.filter((v) => v.source_id !== source_id);
     if(kept.length !== S.queue.length) {
@@ -375,6 +388,85 @@ function drop_source_tracks(source_id)
     }
     if(S.temp && S.temp.source_id === source_id) {
         back_to_deck();
+    }
+    if(S.videos.length !== before) {
+        emit("library");
+    }
+}
+
+/***************************************************************
+ *  A rescan: the source's videos leave the LIBRARY, and come back
+ *  as new objects when the walk is read in. The deck, the
+ *  temporary list and the element keep theirs meanwhile, and
+ *  relink_source() puts them back on the new ones, by path — a
+ *  rescan used to strip the deck of that source's videos, stop
+ *  the one playing and, the deck left empty, refill it with the
+ *  whole folder in walk order.
+ ***************************************************************/
+function unlist_source_tracks(source_id)
+{
+    if(!source_id) {
+        return;
+    }
+    S.videos = S.videos.filter((v) => v.source_id !== source_id);
+}
+
+function relink_source(source_id)
+{
+    const fresh = (v) => (v && v.source_id === source_id) ? find_video(source_id, v.path) : v;
+    const playing = sounding();
+    const was_loaded = !!playing && S.loaded_uid === playing.uid;
+
+    /*  What is on the element is carried over to its new object: the
+        same file, already loaded, and the same place in it. */
+    const now = fresh(playing);
+    if(playing && now && now !== playing) {
+        now.file = now.file || playing.file;
+        if(was_loaded) {
+            S.loaded_uid = now.uid;
+        }
+        if(S.resumed && S.resumed.uid === playing.uid) {
+            S.resumed.uid = now.uid;
+        }
+        if(pending_resume && pending_resume.uid === playing.uid) {
+            pending_resume.uid = now.uid;
+        }
+    }
+
+    const cur = S.queue[S.qi] || null;
+    const cur_now = fresh(cur);
+    const queue = S.queue.map(fresh).filter(Boolean);
+    if(queue.length !== S.queue.length || queue.some((v, i) => v !== S.queue[i])) {
+        if(queue.length !== S.queue.length) {
+            mark_edited();
+        }
+        S.queue = queue;
+        if(cur_now) {
+            S.qi = queue.indexOf(cur_now);
+        } else if(cur) {
+            /*  The video the deck was on is not in the folder any more. */
+            S.qi = queue.length ? Math.min(S.qi, queue.length - 1) : -1;
+            if(S.mode === "deck") {
+                if(S.qi >= 0) {
+                    load_current(false);
+                } else {
+                    stop_playback();
+                }
+            }
+        }
+        emit("queue");
+    }
+
+    if(S.mode === "temp") {
+        S.temp_list = S.temp_list.map(fresh).filter(Boolean);
+        const t_now = fresh(S.temp);
+        if(!t_now) {
+            back_to_deck();
+        } else {
+            S.temp = t_now;
+            S.temp_i = S.temp_list.indexOf(t_now);
+            emit("temp");
+        }
     }
     emit("library");
 }
@@ -1105,49 +1197,81 @@ function wire(el)
     on("timeupdate", () => emit("time"));
     on("play", () => emit("playing"));
     on("pause", () => emit("playing"));
-    on("loadedmetadata", function() {
-        apply_resume();
-        emit("time");
-        emit("playing");
-    });
+    on("loadedmetadata", () => emit("metadata"));
     on("durationchange", () => emit("time"));
-    on("canplay", () => {
-        S.retry_for = 0;
-    });
+    on("canplay", () => emit("canplay"));
     on("stalled", () => diag("stalled", {}));
-    on("ended", function() {
-        emit("ended");
-        if(S.mode === "temp") {
-            temp_next();
-        } else {
-            step(1);
-        }
-    });
+    on("ended", () => emit("ended"));
     on("error", function() {
         const err = el.error;
         if(!el.getAttribute("src") || (err && err.code === 1)) {
             return;                             // an abort, not a failure
         }
-        diag("video", {code: (err && err.code) || 0});
-        const v = sounding();
-        /*  A File is a snapshot of the disk at the moment it was handed
-            over; a file replaced since reads as a load failure. Fetch it
-            again, once, before calling it unreadable. */
-        if(v && S.retry_for !== v.uid && (!err || err.code !== 4)) {
-            S.retry_for = v.uid;
-            v.file = null;
-            load_into(v, S.autoplay_intent);
-            return;
+        S.el_error = (err && err.code) || 0;
+        emit("error");
+    });
+}
+
+/*  The answers to what the element said, called from the root's
+    actions (see the channels at the top). */
+function on_metadata()
+{
+    apply_resume();
+    emit("time");
+    emit("playing");
+}
+
+function on_canplay()
+{
+    S.retry_for = 0;
+}
+
+function on_ended()
+{
+    if(S.mode === "temp") {
+        temp_next();
+    } else {
+        step(1);
+    }
+}
+
+function on_media_error()
+{
+    const code = S.el_error;
+    diag("video", {code: code});
+    log_warning(`video_store: the element failed, MediaError ${code}`);
+    const v = sounding();
+    /*  A File is a snapshot of the disk at the moment it was handed
+        over; a file replaced since reads as a load failure. Fetch it
+        again, once, before calling it unreadable. */
+    if(v && S.retry_for !== v.uid && code !== 4) {
+        S.retry_for = v.uid;
+        v.file = null;
+        load_into(v, S.autoplay_intent);
+        return;
+    }
+    /*  4 is MEDIA_ERR_SRC_NOT_SUPPORTED: the file is there and fine,
+        and this browser has no decoder for what is inside it. That
+        is a different sentence from "could not be read", and the
+        only one that tells the user what to do about it. */
+    say_notice((code === 4) ? "this browser cannot play this video"
+                            : "that file could not be read");
+    if(S.mode === "temp") {
+        temp_next();
+    }
+}
+
+/*  play() answers with a promise, and its refusals are worth a line:
+    NotAllowedError is a browser that wants a gesture first. AbortError
+    is not a failure — a newer load took the element over. */
+function play_el(el)
+{
+    el.play().catch(function(e) {
+        if(e && e.name === "AbortError") {
+            return;                     // superseded by a newer load
         }
-        /*  4 is MEDIA_ERR_SRC_NOT_SUPPORTED: the file is there and fine,
-            and this browser has no decoder for what is inside it. That
-            is a different sentence from "could not be read", and the
-            only one that tells the user what to do about it. */
-        say_notice((err && err.code === 4) ? "this browser cannot play this video"
-                                           : "that file could not be read");
-        if(S.mode === "temp") {
-            temp_next();
-        }
+        diag("play_refused", {name: (e && e.name) || ""});
+        log_warning(`video_store: play() refused: ${(e && e.name) || e}`);
     });
 }
 
@@ -1222,7 +1346,8 @@ function apply_resume()
         S.el.currentTime = Math.max(0, Math.min(p.at, dur - 1));
         S.resumed = {uid: v.uid, at: p.at};
     } catch(e) {
-        /*  Not seekable: it starts at the start, and says nothing. */
+        /*  Not seekable: it starts at the start. */
+        log_warning(`video_store: cannot resume at ${p.at}: ${(e && e.name) || e}`);
     }
 }
 
@@ -1252,6 +1377,7 @@ function start_over()
         S.el.currentTime = 0;
     } catch(e) {
         /*  Not seekable yet: the load that follows starts at 0 anyway. */
+        log_warning(`video_store: cannot seek to the start: ${(e && e.name) || e}`);
     }
     emit("playing");
 }
@@ -1308,7 +1434,7 @@ async function load_into(v, autoplay)
         setTimeout(() => URL.revokeObjectURL(stale), 1000);
     }
     if(autoplay) {
-        el.play().catch(() => {});
+        play_el(el);
     }
     update_media_session(v);
     emit("playing");
@@ -1331,7 +1457,7 @@ function toggle()
         return;
     }
     if(el.paused) {
-        el.play().catch(() => {});
+        play_el(el);
     } else {
         el.pause();
     }
@@ -1490,6 +1616,7 @@ async function load_subs(v)
         try {
             text = decode_text(await f.arrayBuffer());
         } catch(e) {
+            log_warning(`video_store: cannot read the subtitles ${s.path}: ${(e && e.name) || e}`);
             continue;
         }
         const vtt = /\.vtt$/i.test(s.path) ? text : srt_to_vtt(text);
@@ -1591,27 +1718,55 @@ function update_media_session(v)
         });
     } catch(e) {
         /*  An engine that refuses the metadata still plays the video. */
+        log_warning(`video_store: MediaSession refused the metadata: ${(e && e.name) || e}`);
     }
 }
 
-function setup_media_session()
+/*  The keys of the system — a headset, the lock screen, a keyboard's
+    media keys — are the operating system talking: `on_action(name)`
+    is the root's, and turns each into an event; media_action() below
+    is what its action does. */
+const MEDIA_ACTIONS = ["play", "pause", "previoustrack", "nexttrack", "seekbackward", "seekforward"];
+
+function setup_media_session(on_action)
 {
     if(!("mediaSession" in navigator)) {
         return;
     }
-    const set = (name, fn) => {
+    for(const name of MEDIA_ACTIONS) {
         try {
-            navigator.mediaSession.setActionHandler(name, fn);
+            navigator.mediaSession.setActionHandler(name, () => on_action(name));
         } catch(e) {
-            /*  An action this engine does not know. */
+            /*  An action this engine does not know: feature detection,
+                not a failure — the others are still set. */
         }
-    };
-    set("play", () => toggle());
-    set("pause", () => pause());
-    set("previoustrack", () => prev());
-    set("nexttrack", () => step(1));
-    set("seekbackward", () => seek_by(-10));
-    set("seekforward", () => seek_by(10));
+    }
+}
+
+function media_action(name)
+{
+    switch(name) {
+        case "play":
+            toggle();
+            return true;
+        case "pause":
+            pause();
+            return true;
+        case "previoustrack":
+            prev();
+            return true;
+        case "nexttrack":
+            step(1);
+            return true;
+        case "seekbackward":
+            seek_by(-10);
+            return true;
+        case "seekforward":
+            seek_by(10);
+            return true;
+        default:
+            return false;
+    }
 }
 
 
@@ -1645,6 +1800,8 @@ export {
     set_file_resolver,
     resolve_file,
     drop_source_tracks,
+    unlist_source_tracks,
+    relink_source,
     store_state,
     clear_notice,
     say_notice,
@@ -1720,5 +1877,11 @@ export {
     /*  system */
     set_thumb_lookup,
     setup_media_session,
+    media_action,
+    /*  what the element said */
+    on_metadata,
+    on_canplay,
+    on_ended,
+    on_media_error,
     fmt_time,
 };

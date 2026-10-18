@@ -91,6 +91,33 @@ function named(key)
     };
 }
 
+/*  An id for a node a control is named by. Unique in the page: the same
+    video can be on two screens at once, both kept alive. */
+let id_seq = 0;
+
+function new_id()
+{
+    return "vid-n" + (++id_seq);
+}
+
+/***************************************************************
+ *  A control named by what it does AND by what it does it to:
+ *  "Play" + "Arrival", read as "Play Arrival". A row full of
+ *  buttons that are all just "Play" is a list nobody using a
+ *  reader can tell apart.
+ *
+ *  The control keeps its own name (the four attributes of named(),
+ *  re-translated by refresh_language) and is labelled by itself
+ *  and by the node holding the text (`text_id`), the way gobj-ui
+ *  names a control with its badge: nothing is composed in
+ *  javascript, so a change of language keeps it right.
+ ***************************************************************/
+function named_for(key, text_id)
+{
+    const id = new_id();
+    return {...named(key), id: id, "aria-labelledby": id + " " + text_id};
+}
+
 /*  Rename a control that is already on the page: its state changed, and
     what pressing it does changed with it. */
 function rename($node, key)
@@ -128,4 +155,4 @@ function set_text($root, sel, text)
 }
 
 
-export {P, svg, seek10, ico, named, rename, disabled_if, clear, set_text};
+export {P, svg, seek10, ico, named, named_for, new_id, rename, disabled_if, clear, set_text};

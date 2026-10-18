@@ -43,6 +43,7 @@ import {thumb_info, thumb_url, is_unplayable} from "./thumbs.js";
 import {source_name} from "./sources_store.js";
 import {P, svg, named, clear} from "./ui.js";
 import {sub_label} from "./sub_label.js";
+import {count_noun} from "./plural.js";
 
 import {t} from "i18next";
 
@@ -237,7 +238,10 @@ function paint()
         ["div", {class: "VID_CARD_NUMS"}, [
             ["div", {class: "VID_CARD_NUM"}, [
                 ["b", {}, String(st.views)],
-                ["span", {i18n: "views"}, t("views")]
+                /*  The noun agrees with the figure ("1 view", "2 views"),
+                    so it carries no key refresh_language could repaint
+                    without the count: see plural.js. */
+                ["span", {}, count_noun("n views", st.views)]
             ]],
             ["div", {class: "VID_CARD_NUM"}, [
                 ["b", {}, String(st.full)],
@@ -245,7 +249,7 @@ function paint()
             ]],
             ["div", {class: "VID_CARD_NUM"}, [
                 ["b", {}, String(st.hearts)],
-                ["span", {i18n: "hearts"}, t("hearts")]
+                ["span", {}, count_noun("n hearts", st.hearts)]
             ]],
             ["div", {class: "VID_CARD_NUM VID_CARD_LEFTAT"}, [
                 ["b", {}, st.pos ? fmt_time(st.pos) : "—"],

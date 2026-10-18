@@ -47,7 +47,7 @@ import {paint_thumb, subscribe_thumbs} from "./thumbs.js";
 import {open_card, card_action} from "./video_card.js";
 import {video_row, refresh_rows, mark_playing} from "./rows.js";
 import {count_pair} from "./plural.js";
-import {P, svg, ico, named, clear} from "./ui.js";
+import {P, svg, ico, named, named_for, new_id, clear} from "./ui.js";
 
 import {t} from "i18next";
 
@@ -245,10 +245,16 @@ function visible_list(gobj)
 function current_folder(gobj)
 {
     let priv = gobj.priv;
+    let sources = all_sources();
+    /*  The source being walked was removed: back to the top, where
+        what is left can be seen, instead of an empty folder of a source
+        that no longer exists and no crumb out of it. */
+    if(priv.folder && !sources.find((s) => s.id === priv.folder.source_id)) {
+        priv.folder = null;
+    }
     if(priv.folder) {
         return priv.folder;
     }
-    let sources = all_sources();
     if(sources.length === 1) {
         return {source_id: sources[0].id, path: source_root_path(sources[0].id)};
     }
@@ -336,15 +342,21 @@ function empty_library(gobj)
 }
 
 /*  A group's two verbs: play it as the temporary list, put it on the
-    deck. */
-function group_buttons(gobj, kw)
+    deck. Named, with `tid`, by the group's own name. */
+function group_buttons(gobj, kw, tid)
 {
     return ["div", {class: "VID_ROWBTNS"}, [
-        ["button", {class: "VID_IBTN VID_PLAYGROUP", type: "button", ...named("play all")},
+        ["button", {class: "VID_IBTN VID_PLAYGROUP", type: "button", ...named_for("play all", tid)},
             svg(P.play, 20), {click: () => gobj_send_event(gobj, "EV_PLAY_GROUP", kw, gobj)}],
-        ["button", {class: "VID_IBTN VID_ADDGROUP", type: "button", ...named("add all to queue")},
+        ["button", {class: "VID_IBTN VID_ADDGROUP", type: "button", ...named_for("add all to queue", tid)},
             svg(P.enqueue, 20), {click: () => gobj_send_event(gobj, "EV_ADD_GROUP", kw, gobj)}]
     ]];
+}
+
+/*  A name in its own node, for the controls it names. */
+function name_span(text, tid)
+{
+    return ["span", {class: "VID_TITLE", id: tid}, text];
 }
 
 function render_folders(gobj)
@@ -356,12 +368,14 @@ function render_folders(gobj)
     if(!f) {
         /*  Several sources: they are the first level. */
         for(const s of sources) {
+            let tid = new_id();
             out.push(["div", {class: "VID_ROW VID_DIRROW"}, [
-                ["button", {class: "VID_DIRICON", type: "button", ...named("open folder")},
+                ["button", {class: "VID_DIRICON", type: "button", ...named_for("open folder", tid)},
                     svg(P.folder, 26),
                     {click: () => gobj_send_event(gobj, "EV_OPEN_SOURCE", {source_id: s.id}, gobj)}],
                 ["div", {class: "VID_ROWBODY"}, [
-                    ["button", {class: "VID_NAME", type: "button", ...named("open folder")}, s.name,
+                    ["button", {class: "VID_NAME", type: "button", ...named_for("open folder", tid)},
+                        [name_span(s.name, tid)],
                         {click: () => gobj_send_event(gobj, "EV_OPEN_SOURCE", {source_id: s.id}, gobj)}],
                     ["span", {class: "VID_META VID_T2"}, count_pair(s.count, "n videos")]
                 ]]
@@ -374,16 +388,18 @@ function render_folders(gobj)
     let level = folder_level(f.source_id, f.path);
     for(const d of level.dirs) {
         let kw = {kind: "dir", path: d.path};
+        let tid = new_id();
         out.push(["div", {class: "VID_ROW VID_DIRROW"}, [
-            ["button", {class: "VID_DIRICON", type: "button", ...named("open folder")},
+            ["button", {class: "VID_DIRICON", type: "button", ...named_for("open folder", tid)},
                 svg(P.folder, 26),
                 {click: () => gobj_send_event(gobj, "EV_OPEN_DIR", {path: d.path}, gobj)}],
             ["div", {class: "VID_ROWBODY"}, [
-                ["button", {class: "VID_NAME", type: "button", ...named("open folder")}, d.name,
+                ["button", {class: "VID_NAME", type: "button", ...named_for("open folder", tid)},
+                    [name_span(d.name, tid)],
                     {click: () => gobj_send_event(gobj, "EV_OPEN_DIR", {path: d.path}, gobj)}],
                 ["span", {class: "VID_META VID_T2"}, count_pair(d.videos.length, "n videos")]
             ]],
-            group_buttons(gobj, kw)
+            group_buttons(gobj, kw, tid)
         ]]);
     }
     out.push(...rows(gobj, level.videos));
@@ -409,8 +425,9 @@ function crumbs(gobj, f, many)
     for(let i = Math.max(0, from); i < segs.length; i++) {
         let path = segs.slice(0, i + 1).join("/");
         let last = (i === segs.length - 1);
+        let tid = new_id();
         parts.push(["button", {class: "VID_CRUMB" + (last ? " is-here" : ""), type: "button",
-                               ...named("open folder")}, segs[i],
+                               ...named_for("open folder", tid)}, [name_span(segs[i], tid)],
             {click: () => gobj_send_event(gobj, "EV_CRUMB", {path: path}, gobj)}]);
     }
     return ["nav", {class: "VID_CRUMBS", ...named("folders")}, parts];
@@ -427,17 +444,18 @@ function render_shows(gobj)
         $box.className = "VID_THUMB";
         paint_thumb($box, g.videos[0]);
         const open = () => gobj_send_event(gobj, "EV_OPEN_SHOW", {id: g.id}, gobj);
+        let tid = new_id();
         return ["div", {class: "VID_ROW VID_SHOWROW"}, [
-            ["button", {class: "VID_THUMBBTN", type: "button", ...named("open the series")}, [$box],
+            ["button", {class: "VID_THUMBBTN", type: "button", ...named_for("open the series", tid)}, [$box],
                 {click: open}],
             ["div", {class: "VID_ROWBODY"}, [
-                ["button", {class: "VID_NAME", type: "button", ...named("open the series")}, g.name,
-                    {click: open}],
+                ["button", {class: "VID_NAME", type: "button", ...named_for("open the series", tid)},
+                    [name_span(g.name, tid)], {click: open}],
                 ["span", {class: "VID_META VID_T2"},
                     count_pair(g.videos.length, "n episodes").concat(
                         count_pair(g.seasons.length, "n seasons"))]
             ]],
-            group_buttons(gobj, {kind: "show", show: g.id})
+            group_buttons(gobj, {kind: "show", show: g.id}, tid)
         ]];
     });
 }
@@ -450,20 +468,26 @@ function render_show(gobj)
         priv.show_id = "";
         return render_shows(gobj);
     }
+    let show_tid = new_id();
     let out = [["nav", {class: "VID_CRUMBS", ...named("series")}, [
         ["button", {class: "VID_CRUMB", type: "button", i18n: "series", ...named("series")},
             t("series"), {click: () => gobj_send_event(gobj, "EV_OPEN_SHOW", {id: ""}, gobj)}],
-        ["button", {class: "VID_CRUMB is-here", type: "button", ...named("open the series")}, g.name,
+        ["button", {class: "VID_CRUMB is-here", type: "button", ...named_for("open the series", show_tid)},
+            [name_span(g.name, show_tid)],
             {click: () => gobj_send_event(gobj, "EV_OPEN_SHOW", {id: g.id}, gobj)}]
     ]]];
     let on = sounding();
     for(const season of g.seasons) {
+        /*  "Season" and its number are two nodes, named one after the
+            other: read as one text they would run together. */
+        let word = new_id();
+        let num = new_id();
         out.push(["div", {class: "VID_SEASONHEAD"}, [
             ["h2", {class: "VID_SEASONTITLE"}, [
-                ["span", {i18n: "season"}, t("season")],
-                ["span", {}, String(season)]
+                ["span", {i18n: "season", id: word}, t("season")],
+                ["span", {id: num}, String(season)]
             ]],
-            group_buttons(gobj, {kind: "season", show: g.id, season: season})
+            group_buttons(gobj, {kind: "season", show: g.id, season: season}, word + " " + num)
         ]]);
         for(const v of g.videos.filter((x) => x.season === season)) {
             out.push(video_row(gobj, v, {playing: !!on && on.uid === v.uid}));

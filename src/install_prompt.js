@@ -26,6 +26,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {log_warning} from "@yuneta/gobj-js";
 
 const listeners = new Set();
 
@@ -120,6 +121,7 @@ async function do_install()
         const choice = await ev.userChoice;
         outcome = choice ? choice.outcome : null;
     } catch(e) {
+        log_warning(`install_prompt: the install prompt failed: ${(e && e.name) || e}`);
         emit();
         return null;
     }

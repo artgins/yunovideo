@@ -118,7 +118,8 @@ for(let i = 0; i < 12; i++) {
     }
     await page.waitForTimeout(1000);
 }
-check(hearts === "1", `the heart was counted on the card: ${hearts}`);
+const noun = await page.textContent(".VID_CARD_NUM:nth-child(3) span");
+check(hearts === "1" && noun === "Heart", `the heart was counted on the card, in the singular: ${hearts} ${noun}`);
 check(lost_card === null, lost_card === null ? "the card's heart button kept the focus, 12 s"
                                              : `the card's heart button lost the focus after ${lost_card} s`);
 await page.keyboard.press("Escape");

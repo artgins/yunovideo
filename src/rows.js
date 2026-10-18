@@ -30,7 +30,7 @@ import {gobj_send_event, createElement2} from "@yuneta/gobj-js";
 import {facts_of, fmt_time, find_uid} from "./video_store.js";
 import {stats_of, watched_fraction} from "./stats_store.js";
 import {paint_thumb, thumb_info, is_unplayable} from "./thumbs.js";
-import {P, svg, named} from "./ui.js";
+import {P, svg, named, named_for, new_id} from "./ui.js";
 
 import {t} from "i18next";
 
@@ -44,15 +44,17 @@ function duration_of(v)
     return dur ? fmt_time(dur) : "";
 }
 
-/*  The picture, as a button. `play_event` is what pressing it sends. */
-function thumb_button(gobj, v, play_event, extra, ctx)
+/*  The picture, as a button. `play_event` is what pressing it sends;
+    `text_id`, the node with the video's title, names it with "Play"
+    (see named_for). */
+function thumb_button(gobj, v, play_event, extra, ctx, text_id)
 {
     const $box = document.createElement("span");
     $box.className = "VID_THUMB";
     const btn = ["button", {
             class: "VID_THUMBBTN" + (extra || ""),
             type: "button",
-            ...named("play")
+            ...(text_id ? named_for("play", text_id) : named("play"))
         }, [
             $box,
             ["span", {class: "VID_THUMBPLAY"}, svg(P.play, 22)]
@@ -102,6 +104,16 @@ function meta_line(v)
     return ["span", {class: "VID_META"}, bits];
 }
 
+/*  The title of a row, as the button that opens its card: the title
+    is in its own node, `tid`, which names this button and every other
+    one on the row. */
+function name_button(v, tid, on_click)
+{
+    return ["button", {class: "VID_NAME", type: "button", ...named_for("open the card", tid)}, [
+        ["span", {class: "VID_TITLE", id: tid}, v.title]
+    ], {click: on_click}];
+}
+
 /***************************************************************
  *  A row of the library or of a list.
  *
@@ -115,18 +127,18 @@ function video_row(gobj, v, opts)
     const o = opts || {};
     const send = (ev) => () => gobj_send_event(gobj, ev, {uid: v.uid}, gobj);
     const bar = watched_bar(v);
+    const tid = new_id();
     return ["div", {class: "VID_ROW" + (o.playing ? " is-playing" : ""), "data-uid": String(v.uid)}, [
-        thumb_button(gobj, v, o.play || "EV_PLAY_ROW", "", o.ctx),
+        thumb_button(gobj, v, o.play || "EV_PLAY_ROW", "", o.ctx, tid),
         ["div", {class: "VID_ROWBODY"}, [
-            ["button", {class: "VID_NAME", type: "button", ...named("open the card")},
-                v.title, {click: send("EV_OPEN_CARD")}],
+            name_button(v, tid, send("EV_OPEN_CARD")),
             meta_line(v),
             bar
         ].filter(Boolean)],
         ["div", {class: "VID_ROWBTNS"}, [
-            ["button", {class: "VID_IBTN VID_ADDQ", type: "button", ...named("add to queue")},
+            ["button", {class: "VID_IBTN VID_ADDQ", type: "button", ...named_for("add to queue", tid)},
                 svg(P.enqueue, 20), {click: send("EV_ADD_ROW")}],
-            ["button", {class: "VID_IBTN VID_HEARTBTN", type: "button", ...named("give a heart")},
+            ["button", {class: "VID_IBTN VID_HEARTBTN", type: "button", ...named_for("give a heart", tid)},
                 svg(P.heart, 18), {click: send("EV_HEART_ROW")}]
         ]]
     ]];
@@ -179,4 +191,7 @@ function mark_playing($scope, uid)
 }
 
 
-export {video_row, thumb_button, meta_line, watched_bar, duration_of, refresh_rows, mark_playing};
+export {
+    video_row, thumb_button, name_button, meta_line, watched_bar, duration_of,
+    refresh_rows, mark_playing,
+};

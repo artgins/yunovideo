@@ -49,7 +49,7 @@ import {open_card, card_action} from "./video_card.js";
 import {video_row, refresh_rows, mark_playing} from "./rows.js";
 import {subscribe_thumbs} from "./thumbs.js";
 import {count_pair} from "./plural.js";
-import {P, svg, ico, named, clear} from "./ui.js";
+import {P, svg, ico, named, named_for, new_id, clear} from "./ui.js";
 
 import {t} from "i18next";
 
@@ -253,19 +253,23 @@ function render(gobj)
     $c.scrollTop = scroll;
 }
 
+/*  A section's play-all and add-all are named by the section's title:
+    "Play all" four times on one screen says nothing. */
 function section_head(gobj, title_key, n, kw, extra)
 {
+    let tid = new_id();
     let buttons = [];
     if(n) {
-        buttons.push(["button", {class: "VID_IBTN VID_PLAYGROUP", type: "button", ...named("play all")},
+        buttons.push(["button", {class: "VID_IBTN VID_PLAYGROUP", type: "button",
+                                 ...named_for("play all", tid)},
             svg(P.play, 20), {click: () => gobj_send_event(gobj, "EV_PLAY_CTX", kw, gobj)}]);
         buttons.push(["button", {class: "VID_IBTN VID_ADDGROUP", type: "button",
-                                 ...named("add all to queue")},
+                                 ...named_for("add all to queue", tid)},
             svg(P.enqueue, 20), {click: () => gobj_send_event(gobj, "EV_ADD_CTX", kw, gobj)}]);
     }
     return ["div", {class: "VID_LISTHEAD"}, [
         ["h2", {class: "VID_LISTTITLE"}, [
-            ["span", {i18n: title_key}, t(title_key)],
+            ["span", {i18n: title_key, id: tid}, t(title_key)],
             ["span", {class: "VID_SECCOUNT"}, String(n)]
         ]],
         ["div", {class: "VID_ROWBTNS"}, buttons.concat(extra || [])]
@@ -336,18 +340,19 @@ function section_saved(gobj)
         let kw = {id: pl.id};
         const send = (ev) => () => gobj_send_event(gobj, ev, kw, gobj);
         let del = "del:" + pl.id;
+        let tid = new_id();
         let buttons = [
-            ["button", {class: "VID_IBTN VID_PLAYLIST", type: "button", ...named("play the list"),
+            ["button", {class: "VID_IBTN VID_PLAYLIST", type: "button", ...named_for("play the list", tid),
                         ...(r.tracks.length ? {} : {disabled: "disabled"})},
                 svg(P.play, 20), {click: send("EV_PLAY_LIST")}],
-            ["button", {class: "VID_IBTN VID_ADDLIST", type: "button", ...named("add all to queue"),
+            ["button", {class: "VID_IBTN VID_ADDLIST", type: "button", ...named_for("add all to queue", tid),
                         ...(r.tracks.length ? {} : {disabled: "disabled"})},
                 svg(P.enqueue, 20), {click: send("EV_ADD_LIST")}]
         ];
         if(priv.asking === del) {
             buttons.push(["button", {class: "VID_QBTN button is-small is-danger VID_DEL_YES",
                                      type: "button", i18n: "delete this list?",
-                                     ...named("delete this list?")},
+                                     ...named_for("delete this list?", tid)},
                 t("delete this list?"), {click: () => gobj_send_event(gobj, "EV_ASK_YES",
                     {what: del}, gobj)}]);
             buttons.push(["button", {class: "VID_QBTN button is-small", type: "button", i18n: "cancel",
@@ -355,14 +360,15 @@ function section_saved(gobj)
                 t("cancel"), {click: () => gobj_send_event(gobj, "EV_ASK_NO", {}, gobj)}]);
         } else {
             buttons.push(["button", {class: "VID_IBTN VID_DELLIST", type: "button",
-                                     ...named("delete this list")},
+                                     ...named_for("delete this list", tid)},
                 svg(P.trash, 18), {click: () => gobj_send_event(gobj, "EV_ASK", {what: del}, gobj)}]);
         }
         let open = priv.open === pl.id;
         out.push(["div", {class: "VID_ROW VID_LISTROW" + (open ? " is-open" : "")}, [
             ["div", {class: "VID_ROWBODY"}, [
                 ["button", {class: "VID_NAME", type: "button", "aria-expanded": open ? "true" : "false",
-                            ...named("show what is in it")}, pl.name, {click: send("EV_UNFOLD")}],
+                            ...named_for("show what is in it", tid)},
+                    [["span", {class: "VID_TITLE", id: tid}, pl.name]], {click: send("EV_UNFOLD")}],
                 ["span", {class: "VID_META VID_T2"}, count_pair(pl.count, "n videos").concat(
                     r.missing ? [["span", {class: "VID_FACT is-warn VID_T2"},
                         count_pair(r.missing, "n missing")]] : [])]
@@ -540,6 +546,8 @@ function ac_play_list(gobj, event, kw, src)
     let shell = yui_shell_of(gobj);
     confirm_replace(shell).then(function(answer) {
         gobj_send_event(gobj, "EV_REPLACE_ANSWER", {id: kw.id, answer: answer || ""}, gobj);
+    }, function(e) {
+        log_error(`${GCLASS_NAME}: the replace question failed: ${(e && e.stack) || e}`);
     });
     return 0;
 }

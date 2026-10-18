@@ -31,6 +31,8 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {log_warning, log_error} from "@yuneta/gobj-js";
+
 import {
     STORE_SOURCES, STORE_FILES, STORE_TAGS,
     idb_all, idb_get, idb_put, idb_del, idb_del_prefix, idb_get_prefix,
@@ -39,7 +41,7 @@ import {
 } from "./idb.js";
 import {diag} from "./diag.js";
 import {
-    ingest, begin_read, drop_source_tracks, cancel_ingest,
+    ingest, begin_read, drop_source_tracks, unlist_source_tracks, relink_source, cancel_ingest,
     tags_of_source, restore_tracks, set_file_resolver,
     queue_length, queue_add, videos_of_source, reload_current,
 } from "./video_store.js";
@@ -209,6 +211,7 @@ async function query_permission(source)
     try {
         return await source.handle.queryPermission({mode: "read"});
     } catch(e) {
+        log_warning(`sources_store: queryPermission failed on ${source.name}: ${(e && e.name) || e}`);
         return "denied";
     }
 }
@@ -255,6 +258,7 @@ async function authorize(id)
     try {
         state = await source.handle.requestPermission({mode: "read"});
     } catch(e) {
+        log_warning(`sources_store: requestPermission failed: ${(e && e.name) || e}`);
         state = "denied";
     }
     rt(id).permission = state;
@@ -811,7 +815,10 @@ async function add_dir()
     try {
         handle = await window.showDirectoryPicker({id: "videos", mode: "read", startIn: "videos"});
     } catch(e) {
-        return "";                  // the user closed the picker
+        if(!e || e.name !== "AbortError") {
+            log_warning(`sources_store: the folder picker failed: ${(e && e.name) || e}`);
+        }
+        return "";                  // the user closed the picker (AbortError)
     }
     return await add_dir_handle(handle);
 }
@@ -1139,7 +1146,10 @@ function scan(id, force)
     let next = scan_queue.then(run_it, run_it);
     /*  The chain must survive a scan that threw, or every folder picked
         after it would be dropped on the floor. */
-    scan_queue = next.catch(() => 0);
+    scan_queue = next.catch(function(e) {
+        log_error(`sources_store: a scan threw: ${(e && e.stack) || e}`);
+        return 0;
+    });
     return next;
 }
 
@@ -1173,6 +1183,7 @@ async function scan_now(id, force)
             files = source.files || [];
         }
     } catch(e) {
+        log_warning(`sources_store: reading ${source.name} failed: ${(e && e.name) || e}`);
         r.error = (e && e.name === "NotAllowedError") ? "permission denied" : "could not be read";
         r.scanning = false;
         /*  Store it even though the read failed. The source is real —
@@ -1229,8 +1240,10 @@ async function scan_now(id, force)
 
     source.by_path = null;      // rebuilt on demand from the new file list
 
-    /*  A rescan replaces this source's tracks; it never doubles them. */
-    drop_source_tracks(id);
+    /*  A rescan replaces this source's videos in the library; it never
+        doubles them. The deck keeps its own until relink_source() puts
+        them back on the new ones, below. */
+    unlist_source_tracks(id);
 
     /*  A rescan asks again about the files this browser refused: it may
         have been updated since. The pictures already made stay. */
@@ -1251,6 +1264,7 @@ async function scan_now(id, force)
         return 0;
     }
 
+    relink_source(id);
     source.count = (res && res.count) || 0;
     r.scanning = false;
     S.stopping = false;

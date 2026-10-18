@@ -61,11 +61,15 @@ import {
 } from "./install_prompt.js";
 import {open_install} from "./install_dialog.js";
 import {open_card, card_action} from "./video_card.js";
-import {thumb_button, meta_line, watched_bar, refresh_rows} from "./rows.js";
-import {toggle_fullscreen, toggle_pip, pip_supported, in_fullscreen} from "./screen.js";
+import {thumb_button, name_button, meta_line, watched_bar, refresh_rows} from "./rows.js";
+import {
+    toggle_fullscreen, toggle_pip, pip_supported, in_fullscreen, fullscreen_supported,
+} from "./screen.js";
 import {sub_label} from "./sub_label.js";
 import {count_pair} from "./plural.js";
-import {P, svg, seek10, ico, named, rename, clear, set_text, disabled_if} from "./ui.js";
+import {
+    P, svg, seek10, ico, named, named_for, new_id, rename, clear, set_text, disabled_if,
+} from "./ui.js";
 
 import {t} from "i18next";
 
@@ -166,6 +170,14 @@ function mt_start(gobj)
     let on_fs = () => gobj_send_event(gobj, "EV_STORE", {channel: "fullscreen"}, gobj);
     document.addEventListener("fullscreenchange", on_fs);
     priv.unsubs.push(() => document.removeEventListener("fullscreenchange", on_fs));
+    /*  The iPhone's own player says it on the element instead. */
+    let el = get_video();
+    el.addEventListener("webkitbeginfullscreen", on_fs);
+    el.addEventListener("webkitendfullscreen", on_fs);
+    priv.unsubs.push(() => {
+        el.removeEventListener("webkitbeginfullscreen", on_fs);
+        el.removeEventListener("webkitendfullscreen", on_fs);
+    });
 
     let shell = yui_shell_of(gobj);
     if(shell) {
@@ -409,6 +421,7 @@ function paint_transport(gobj)
     rename($mute, el.muted ? "unmute" : "mute");
 
     $tr.querySelector(".VID_TPIP").classList.toggle("is-hidden", !pip_supported());
+    $tr.querySelector(".VID_TFULL").classList.toggle("is-hidden", !fullscreen_supported());
 
     let fs = in_fullscreen();
     let $full = $tr.querySelector(".VID_TFULL");
@@ -485,8 +498,10 @@ function paint_meta(gobj)
         ].filter(Boolean)]);
     }
     if(v) {
-        nodes.push(["button", {class: "VID_DECKTITLE", type: "button", ...named("open the card")},
-            v.title, {click: () => gobj_send_event(gobj, "EV_OPEN_CARD", {uid: v.uid}, gobj)}]);
+        let tid = new_id();
+        nodes.push(["button", {class: "VID_DECKTITLE", type: "button", ...named_for("open the card", tid)},
+            [["span", {class: "VID_TITLE", id: tid}, v.title]],
+            {click: () => gobj_send_event(gobj, "EV_OPEN_CARD", {uid: v.uid}, gobj)}]);
         let facts = facts_of(v);
         if(facts.length) {
             nodes.push(["div", {class: "VID_META"}, facts.map((s) => ["span", {class: "VID_FACT"}, s])]);
@@ -665,23 +680,24 @@ function paint_queue(gobj)
         let playing = (i === qi) && !temp;
         let bar = watched_bar(v);
         const kw = {uid: v.uid};
+        const tid = new_id();
         return ["div", {class: "VID_ROW VID_QROW" + (playing ? " is-playing" : ""),
                         "data-uid": String(v.uid)}, [
-            thumb_button(gobj, v, "EV_PLAY_AT"),
+            thumb_button(gobj, v, "EV_PLAY_AT", "", "", tid),
             ["div", {class: "VID_ROWBODY"}, [
-                ["button", {class: "VID_NAME", type: "button", ...named("open the card")},
-                    v.title, {click: send("EV_OPEN_CARD", kw)}],
+                name_button(v, tid, send("EV_OPEN_CARD", kw)),
                 meta_line(v),
                 bar
             ].filter(Boolean)],
             ["div", {class: "VID_ROWBTNS"}, [
-                ["button", {class: "VID_IBTN VID_UP", type: "button", ...named("move up"),
+                ["button", {class: "VID_IBTN VID_UP", type: "button", ...named_for("move up", tid),
                             ...disabled_if(i === 0)},
                     svg(P.up, 18), {click: send("EV_MOVE", {uid: v.uid, dir: -1})}],
-                ["button", {class: "VID_IBTN VID_DOWN", type: "button", ...named("move down"),
+                ["button", {class: "VID_IBTN VID_DOWN", type: "button", ...named_for("move down", tid),
                             ...disabled_if(i === queue.length - 1)},
                     svg(P.down, 18), {click: send("EV_MOVE", {uid: v.uid, dir: 1})}],
-                ["button", {class: "VID_IBTN VID_REMOVE", type: "button", ...named("remove from queue")},
+                ["button", {class: "VID_IBTN VID_REMOVE", type: "button",
+                            ...named_for("remove from queue", tid)},
                     svg(P.remove, 18), {click: send("EV_REMOVE", kw)}]
             ]]
         ]];
@@ -985,11 +1001,20 @@ function ac_authorize(gobj, event, kw, src)
     for the deck to be written, for at most a second and a half. */
 function ac_reload(gobj, event, kw, src)
 {
-    const go = () => location.reload();
+    const go = () => gobj_send_event(gobj, "EV_RELOAD_NOW", {}, gobj);
     Promise.race([
         store_deck(),
         new Promise((resolve) => setTimeout(resolve, 1500))
-    ]).then(go, go);
+    ]).then(go, function(e) {
+        log_error(`${GCLASS_NAME}: the deck could not be stored before the reload: ${e}`);
+        go();
+    });
+    return 0;
+}
+
+function ac_reload_now(gobj, event, kw, src)
+{
+    location.reload();
     return 0;
 }
 
@@ -1066,6 +1091,7 @@ function create_gclass(gclass_name)
             ["EV_CLEAR_NOTICE",     ac_clear_notice,    null],
             ["EV_AUTHORIZE",        ac_authorize,       null],
             ["EV_RELOAD",           ac_reload,          null],
+            ["EV_RELOAD_NOW",       ac_reload_now,      null],
             ["EV_INSTALL",          ac_install,         null],
             ["EV_INSTALL_CLOSE",    ac_install_close,   null],
             ["EV_GO",               ac_go,              null]
@@ -1103,6 +1129,7 @@ function create_gclass(gclass_name)
         ["EV_CLEAR_NOTICE",     0],
         ["EV_AUTHORIZE",        0],
         ["EV_RELOAD",           0],
+        ["EV_RELOAD_NOW",       0],
         ["EV_INSTALL",          0],
         ["EV_INSTALL_CLOSE",    0],
         ["EV_GO",               0]

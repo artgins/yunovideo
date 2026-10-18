@@ -63,7 +63,6 @@ const ja = {
         "look inside": "中を見る",
         "source": "ソース",
         "loved": "お気に入り",
-        "hearts": "ハート",
         "give a heart": "ハートをあげる",
         "forget these counts": "この記録を忘れる",
         "authorised sources": "許可したフォルダー",
@@ -254,7 +253,6 @@ const ja = {
         "size": "サイズ",
         "duration": "長さ",
         "picture": "映像",
-        "views": "回視聴",
         "to the end": "最後まで",
         "left at": "中断位置",
         "take a heart back": "ハートを一つ戻す",
@@ -289,6 +287,8 @@ const ja = {
 
         /*  ---- counts: every CLDR form the language has ---- */
         "n videos_other": "本",
+        "n views_other": "回視聴",
+        "n hearts_other": "ハート",
         "n episodes_other": "話",
         "n seasons_other": "シーズン",
     },

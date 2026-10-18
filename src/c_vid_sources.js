@@ -46,7 +46,7 @@ import {
     subscribe, videos_of_source, queue_add, store_state, open_in_library,
 } from "./video_store.js";
 import {count_pair} from "./plural.js";
-import {P, ico, named, clear, disabled_if} from "./ui.js";
+import {P, ico, named, named_for, new_id, clear, disabled_if} from "./ui.js";
 
 import {t} from "i18next";
 
@@ -301,9 +301,12 @@ function build_source_row(gobj, s)
     let needs_auth = (s.permission !== "granted");
     let kind_key = (s.kind === "dir") ? "folder" : "files";
     const send = (ev) => () => gobj_send_event(gobj, ev, {source_id: s.id}, gobj);
+    /*  Every button of the row is named by the source too: "Rescan" on
+        three rows is three buttons nobody can tell apart by ear. */
+    let tid = new_id();
 
     let meta = ["div", {class: "VID_SRCMETA"}, [
-        ["div", {class: "VID_T1"}, s.name],
+        ["div", {class: "VID_T1", id: tid}, s.name],
         ["div", {class: "VID_T2"}, [
             ["span", {i18n: kind_key}, t(kind_key)],
             ["span", {class: "VID_SEP"}, "·"],
@@ -341,7 +344,8 @@ function build_source_row(gobj, s)
     }
 
     const action = (cls, key, path, ev, extra) =>
-        ["button", {class: "VID_QBTN button " + cls, type: "button", ...named(key), ...(extra || {})},
+        ["button", {class: "VID_QBTN button " + cls, type: "button", ...named_for(key, tid),
+                    ...(extra || {})},
             [ico(path, 15), ["span", {class: "VID_QLABEL", i18n: key}, t(key)]],
             {click: send(ev)}];
 
@@ -364,7 +368,7 @@ function build_source_row(gobj, s)
         places: asked in the row, where the finger already is. */
     if(gobj.priv.confirming === s.id) {
         actions.push(["button", {class: "VID_QBTN button is-danger VID_REMOVE_YES", type: "button",
-                                 i18n: "remove this source?", ...named("remove this source?")},
+                                 i18n: "remove this source?", ...named_for("remove this source?", tid)},
             t("remove this source?"), {click: send("EV_REMOVE_YES")}]);
         actions.push(["button", {class: "VID_QBTN button is-ghost", type: "button",
                                  i18n: "cancel", ...named("cancel")},
@@ -409,11 +413,9 @@ function build_diagnostics(gobj)
 function fill_diagnostics(gobj)
 {
     diagnose().then(function(lines) {
-        gobj.priv.diag_text = lines.map((l) => l.k.padEnd(22) + " " + l.v).join("\n");
-        let $b = gobj.priv.$content.querySelector(".VID_DIAG_BODY");
-        if($b) {
-            $b.textContent = gobj.priv.diag_text;
-        }
+        gobj_send_event(gobj, "EV_DIAG_READY", {lines: lines}, gobj);
+    }, function(e) {
+        log_error(`${GCLASS_NAME}: the diagnostics failed: ${(e && e.stack) || e}`);
     });
 }
 
@@ -547,6 +549,19 @@ function ac_diag_toggle(gobj, event, kw, src)
     return 0;
 }
 
+/*  The diagnostics were gathered (they read the disk and the storage,
+    which answer late). */
+function ac_diag_ready(gobj, event, kw, src)
+{
+    let priv = gobj.priv;
+    priv.diag_text = (kw.lines || []).map((l) => l.k.padEnd(22) + " " + l.v).join("\n");
+    let $b = priv.$content.querySelector(".VID_DIAG_BODY");
+    if($b) {
+        $b.textContent = priv.diag_text;
+    }
+    return 0;
+}
+
 function ac_copy_diag(gobj, event, kw, src)
 {
     let text = gobj.priv.diag_text || "";
@@ -604,7 +619,8 @@ function create_gclass(gclass_name)
             ["EV_REMOVE_YES",       ac_remove_yes,      null],
             ["EV_REMOVE_NO",        ac_remove_no,       null],
             ["EV_DIAG_TOGGLE",      ac_diag_toggle,     null],
-            ["EV_COPY_DIAG",        ac_copy_diag,       null]
+            ["EV_COPY_DIAG",        ac_copy_diag,       null],
+            ["EV_DIAG_READY",       ac_diag_ready,      null]
         ]]
     ];
 
@@ -623,7 +639,8 @@ function create_gclass(gclass_name)
         ["EV_REMOVE_YES",       0],
         ["EV_REMOVE_NO",        0],
         ["EV_DIAG_TOGGLE",      0],
-        ["EV_COPY_DIAG",        0]
+        ["EV_COPY_DIAG",        0],
+        ["EV_DIAG_READY",       0]
     ];
 
     __gclass__ = gclass_create(

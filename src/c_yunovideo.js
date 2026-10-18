@@ -28,7 +28,7 @@
  ***********************************************************************/
 import {
     SDATA, SDATA_END, data_type_t,
-    gclass_create, log_error,
+    gclass_create, log_error, log_warning,
     gobj_read_attr,
     gobj_create_pure_child,
     gobj_subscribe_event,
@@ -53,14 +53,15 @@ import {
     fmt_time, restore_queue, store_deck, set_deck_ready, temp_track,
     temp_position, back_to_deck, queue_add, last_said, clear_said,
     dock_video, get_video, facts_of, set_ui_language, set_subtitle,
-    subtitle_tracks, current_subtitle,
+    subtitle_tracks, current_subtitle, media_action,
+    on_metadata, on_canplay, on_ended, on_media_error,
 } from "./video_store.js";
 import {
     load_sources, subscribe_sources, scanning_source, is_preparing,
     stop_scan, is_stopping,
 } from "./sources_store.js";
 import {load_playlists} from "./playlists_store.js";
-import {load_stats, flush_places} from "./stats_store.js";
+import {load_stats, flush_places, note_ended} from "./stats_store.js";
 import {load_thumbs, thumb_url, paint_thumb, thumbs_held} from "./thumbs.js";
 import {pref_get} from "./idb.js";
 import {diag_watch} from "./diag.js";
@@ -88,6 +89,10 @@ const DECK_ROUTE = "/player";
     while something plays; it is cheap, and it is what moves the bar. */
 const CHANNELS = {playing: 1, queue: 1, time: 1, loading: 1, temp: 1, said: 1};
 
+/*  What the video element itself said (see video_store): each enters
+    the machine as EV_MEDIA, and its action answers it. */
+const MEDIA_CHANNELS = {metadata: 1, canplay: 1, ended: 1, error: 1};
+
 const PALETTES = {auto: 1, gold: 1, ice: 1, rose: 1, leaf: 1, aurora: 1, dusk: 1};
 
 
@@ -114,6 +119,7 @@ let PRIVATE_DATA = {
     unsub:      null,
     unsub_src:  null,
     tint_key:   null,
+    tint_img:   null,
     on_deck:    true,
 };
 
@@ -179,7 +185,9 @@ function mt_start(gobj)
     yui_shell_language_changed(priv.shell);
 
     build_strip(gobj);
-    setup_media_session();
+    setup_media_session(function(action) {
+        gobj_send_event(gobj, "EV_MEDIA_KEY", {action: action}, gobj);
+    });
 
     diag_watch(function() {
         let v = sounding();
@@ -199,6 +207,8 @@ function mt_start(gobj)
     priv.unsub = subscribe(function(channel) {
         if(CHANNELS[channel]) {
             gobj_send_event(gobj, "EV_STORE", {channel: channel}, gobj);
+        } else if(MEDIA_CHANNELS[channel]) {
+            gobj_send_event(gobj, "EV_MEDIA", {what: channel}, gobj);
         }
     });
     priv.unsub_src = subscribe_sources(function() {
@@ -228,6 +238,14 @@ function mt_stop(gobj)
     if(priv.scan_timer) {
         clearInterval(priv.scan_timer);
         priv.scan_timer = 0;
+    }
+    if(priv.save_timer) {
+        clearTimeout(priv.save_timer);
+        priv.save_timer = 0;
+    }
+    if(priv.said_timer) {
+        clearTimeout(priv.said_timer);
+        priv.said_timer = 0;
     }
     if(priv.strips) {
         priv.strips.disconnect();
@@ -278,6 +296,10 @@ async function boot(gobj)
         if(snap) {
             restore_queue(snap);
         }
+    } catch(e) {
+        /*  What was remembered could not all come back. The app goes on
+            with what did, and says so where it can be read. */
+        log_error(`${GCLASS_NAME}: boot could not restore everything: ${(e && e.stack) || e}`);
     } finally {
         set_deck_ready();
     }
@@ -297,8 +319,7 @@ function save_deck_soon(gobj)
         return;
     }
     priv.save_timer = setTimeout(function() {
-        priv.save_timer = 0;
-        store_deck();
+        gobj_send_event(gobj, "EV_SAVE_DECK", {}, gobj);
     }, 1500);
 }
 
@@ -398,43 +419,52 @@ function tint_from(gobj, v)
         return;
     }
     let img = new Image();
+    priv.tint_img = img;
     img.onload = function() {
-        try {
-            let cv = document.createElement("canvas");
-            cv.width = cv.height = 12;
-            let ctx = cv.getContext("2d", {willReadFrequently: true});
-            ctx.drawImage(img, 0, 0, 12, 12);
-            let d = ctx.getImageData(0, 0, 12, 12).data;
-            let best = null;
-            let best_score = -1;
-            for(let i = 0; i < d.length; i += 4) {
-                let r = d[i];
-                let g = d[i + 1];
-                let b = d[i + 2];
-                let mx = Math.max(r, g, b);
-                let mn = Math.min(r, g, b);
-                let sat = mx === 0 ? 0 : (mx - mn) / mx;
-                let lum = (mx + mn) / 510;
-                let score = sat * (1 - Math.abs(lum - 0.55));
-                if(score > best_score) {
-                    best_score = score;
-                    best = [r, g, b];
-                }
-            }
-            /*  A grey frame says nothing about colour: keep the palette's. */
-            if(best && best_score > 0.12) {
-                set_accent(readable(lift(best)));
-            } else {
-                clear_accent();
-            }
-        } catch(e) {
-            clear_accent();
-        }
+        gobj_send_event(gobj, "EV_TINT_READY", {key: key}, gobj);
     };
     img.onerror = function() {
-        clear_accent();
+        gobj_send_event(gobj, "EV_TINT_FAILED", {key: key}, gobj);
     };
     img.src = url;
+}
+
+/*  The accent, from the picture `tint_from` loaded. */
+function tint_read(gobj)
+{
+    let img = gobj.priv.tint_img;
+    try {
+        let cv = document.createElement("canvas");
+        cv.width = cv.height = 12;
+        let ctx = cv.getContext("2d", {willReadFrequently: true});
+        ctx.drawImage(img, 0, 0, 12, 12);
+        let d = ctx.getImageData(0, 0, 12, 12).data;
+        let best = null;
+        let best_score = -1;
+        for(let i = 0; i < d.length; i += 4) {
+            let r = d[i];
+            let g = d[i + 1];
+            let b = d[i + 2];
+            let mx = Math.max(r, g, b);
+            let mn = Math.min(r, g, b);
+            let sat = mx === 0 ? 0 : (mx - mn) / mx;
+            let lum = (mx + mn) / 510;
+            let score = sat * (1 - Math.abs(lum - 0.55));
+            if(score > best_score) {
+                best_score = score;
+                best = [r, g, b];
+            }
+        }
+        /*  A grey frame says nothing about colour: keep the palette's. */
+        if(best && best_score > 0.12) {
+            set_accent(readable(lift(best)));
+        } else {
+            clear_accent();
+        }
+    } catch(e) {
+        log_warning(`${GCLASS_NAME}: cannot read the picture's colours: ${(e && e.name) || e}`);
+        clear_accent();
+    }
 }
 
 function lift([r, g, b])
@@ -770,8 +800,7 @@ function paint_said(gobj)
     priv.$said.appendChild(createElement2(["div", {class: "VID_SAID_CARD"}, parts]));
     priv.$said.classList.add("is-on");
     priv.said_timer = setTimeout(function() {
-        priv.said_timer = 0;
-        clear_said();
+        gobj_send_event(gobj, "EV_SAID_EXPIRED", {}, gobj);
     }, 2400);
 }
 
@@ -795,7 +824,7 @@ function paint_scan(gobj)
     if(on && !priv.scan_timer) {
         priv.scan_t0 = Date.now();
         priv.scan_timer = setInterval(function() {
-            set_text(priv.$scan, ".VID_SCAN_CLOCK", fmt_time((Date.now() - priv.scan_t0) / 1000));
+            gobj_send_event(gobj, "EV_SCAN_TICK", {}, gobj);
         }, 500);
     } else if(!on && priv.scan_timer) {
         clearInterval(priv.scan_timer);
@@ -1033,6 +1062,89 @@ function ac_key(gobj, event, kw, src)
     return 0;
 }
 
+/*  What the element said, answered (see video_store's channels). The
+    end of a video is noted in the stats BEFORE the next one is loaded:
+    the count belongs to the one that ended. */
+function ac_media(gobj, event, kw, src)
+{
+    switch(kw.what) {
+        case "metadata":
+            on_metadata();
+            break;
+        case "canplay":
+            on_canplay();
+            break;
+        case "ended":
+            note_ended();
+            on_ended();
+            break;
+        case "error":
+            on_media_error();
+            break;
+        default:
+            log_error(`${GCLASS_NAME}: unknown media event: ${kw.what}`);
+            return -1;
+    }
+    return 0;
+}
+
+/*  A key of the system: a headset, the lock screen, the media keys. */
+function ac_media_key(gobj, event, kw, src)
+{
+    if(!media_action(kw.action)) {
+        log_error(`${GCLASS_NAME}: unknown media action: ${kw.action}`);
+        return -1;
+    }
+    return 0;
+}
+
+function ac_save_deck(gobj, event, kw, src)
+{
+    gobj.priv.save_timer = 0;
+    store_deck();
+    return 0;
+}
+
+function ac_said_expired(gobj, event, kw, src)
+{
+    gobj.priv.said_timer = 0;
+    clear_said();
+    return 0;
+}
+
+/*  The clock ticks on its own: a folder still being handed over
+    produces no events at all, and a frozen clock is a hung app. */
+function ac_scan_tick(gobj, event, kw, src)
+{
+    let priv = gobj.priv;
+    if(!priv.scan_t0) {
+        return 0;       // the read ended and the timer with it: a tick in flight
+    }
+    set_text(priv.$scan, ".VID_SCAN_CLOCK", fmt_time((Date.now() - priv.scan_t0) / 1000));
+    return 0;
+}
+
+/*  The picture of what plays has loaded: its colour, unless another
+    one was asked for meanwhile. */
+function ac_tint_ready(gobj, event, kw, src)
+{
+    if(kw.key !== gobj.priv.tint_key) {
+        return 0;       // a newer picture was asked for: this one is stale
+    }
+    tint_read(gobj);
+    return 0;
+}
+
+function ac_tint_failed(gobj, event, kw, src)
+{
+    if(kw.key !== gobj.priv.tint_key) {
+        return 0;       // a newer picture was asked for: this one is stale
+    }
+    log_warning(`${GCLASS_NAME}: the picture for the accent did not load`);
+    clear_accent();
+    return 0;
+}
+
 /*  The tab can go away at any moment: the deck and the place inside
     the video go down now, not in a second and a half. */
 function ac_page_hidden(gobj, event, kw, src)
@@ -1081,7 +1193,14 @@ function create_gclass(gclass_name)
             ["EV_BACK_TO_DECK",     ac_back_to_deck,    null],
             ["EV_KEEP_TEMP",        ac_keep_temp,       null],
             ["EV_KEY",              ac_key,             null],
-            ["EV_PAGE_HIDDEN",      ac_page_hidden,     null]
+            ["EV_PAGE_HIDDEN",      ac_page_hidden,     null],
+            ["EV_MEDIA",            ac_media,           null],
+            ["EV_MEDIA_KEY",        ac_media_key,       null],
+            ["EV_SAVE_DECK",        ac_save_deck,       null],
+            ["EV_SAID_EXPIRED",     ac_said_expired,    null],
+            ["EV_SCAN_TICK",        ac_scan_tick,       null],
+            ["EV_TINT_READY",       ac_tint_ready,      null],
+            ["EV_TINT_FAILED",      ac_tint_failed,     null]
         ]]
     ];
 
@@ -1103,7 +1222,14 @@ function create_gclass(gclass_name)
         ["EV_BACK_TO_DECK",     0],
         ["EV_KEEP_TEMP",        0],
         ["EV_KEY",              0],
-        ["EV_PAGE_HIDDEN",      0]
+        ["EV_PAGE_HIDDEN",      0],
+        ["EV_MEDIA",            0],
+        ["EV_MEDIA_KEY",        0],
+        ["EV_SAVE_DECK",        0],
+        ["EV_SAID_EXPIRED",     0],
+        ["EV_SCAN_TICK",        0],
+        ["EV_TINT_READY",       0],
+        ["EV_TINT_FAILED",      0]
     ];
 
     __gclass__ = gclass_create(

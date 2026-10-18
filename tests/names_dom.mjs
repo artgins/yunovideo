@@ -80,6 +80,50 @@ console.log((ok ? "ok    " : "FAIL  ") + `a control's name changes language: "${
 failures += ok ? 0 : 1;
 await unnamed("player, in Spanish");
 
+/*  The buttons of a row are named by the row too: "Play" + the title,
+    the way a reader resolves aria-labelledby (each id's aria-label if
+    it has one, else its text) — and in the language in force. */
+async function row_names(where)
+{
+    const r = await page.evaluate(() => {
+        const name_of = (el) => {
+            const ids = (el.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean);
+            return ids.map((id) => {
+                const n = document.getElementById(id);
+                if(!n) {
+                    return "#MISSING#";
+                }
+                return (n.getAttribute("aria-label") || n.textContent || "").trim();
+            }).join(" ");
+        };
+        const out = {n: 0, bad: [], sample: ""};
+        for(const row of document.querySelectorAll(".VID_ROW[data-uid]")) {
+            const title = (row.querySelector(".VID_TITLE") || {}).textContent || "";
+            for(const b of row.querySelectorAll("button")) {
+                const name = name_of(b);
+                out.n++;
+                if(!name.endsWith(title) || name === title || name.indexOf("#MISSING#") >= 0) {
+                    out.bad.push(b.className + " → «" + name + "»");
+                } else if(!out.sample) {
+                    out.sample = name;
+                }
+            }
+        }
+        return out;
+    });
+    const ok = r.n > 0 && !r.bad.length;
+    console.log((ok ? "ok    " : "FAIL  ") + `${where}: ${r.n} row buttons named by their row, e.g. "${r.sample}"` +
+                (r.bad.length ? "\n        " + r.bad.slice(0, 6).join("\n        ") : ""));
+    failures += ok ? 0 : 1;
+    return r.sample;
+}
+const sample_es = await row_names("player rows, in Spanish");
+await route(page, "#/library", 900);
+await row_names("library rows, in Spanish");
+const lang_ok = /^(Reproducir|Ver todo sobre él|Subir|Bajar|Sacar de la cola) /.test(sample_es);
+console.log((lang_ok ? "ok    " : "FAIL  ") + `the row's name is in the language in force: "${sample_es}"`);
+failures += lang_ok ? 0 : 1;
+
 const errs = report(page);
 await browser.close();
 process.exit(failures || errs ? 1 : 0);
