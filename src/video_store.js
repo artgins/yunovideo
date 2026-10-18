@@ -56,6 +56,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {traced, trace_emit, store_trace} from "./trace.js";
 import {log_warning} from "@yuneta/gobj-js";
 
 import {pref_get, pref_set} from "./idb.js";
@@ -79,6 +80,7 @@ function subscribe(fn)
 
 function emit(channel)
 {
+    trace_emit("video_store", channel);
     for(const fn of listeners) {
         try {
             fn(channel);
@@ -1193,7 +1195,12 @@ function dock_video($host)
 function wire(el)
 {
     S.ac = new AbortController();
-    const on = (ev, fn) => el.addEventListener(ev, fn, {signal: S.ac.signal});
+    /*  What the element says is a line of the trace before anything is
+        done about it (timeupdate under the clock level). */
+    const on = (ev, fn) => el.addEventListener(ev, function(e) {
+        store_trace("video_store", `element ${ev}`, undefined, ev === "timeupdate");
+        fn(e);
+    }, {signal: S.ac.signal});
     on("timeupdate", () => emit("time"));
     on("play", () => emit("playing"));
     on("pause", () => emit("playing"));
@@ -1786,25 +1793,71 @@ function fmt_time(s)
 }
 
 
+
+/*  What the interface calls, traced (see trace.js): the store's own
+    calls to these stay untraced. */
+const __t_begin_read = traced("video_store", "begin_read", begin_read);
+const __t_ingest = traced("video_store", "ingest", ingest);
+const __t_cancel_ingest = traced("video_store", "cancel_ingest", cancel_ingest);
+const __t_restore_tracks = traced("video_store", "restore_tracks", restore_tracks);
+const __t_drop_source_tracks = traced("video_store", "drop_source_tracks", drop_source_tracks);
+const __t_unlist_source_tracks = traced("video_store", "unlist_source_tracks", unlist_source_tracks);
+const __t_relink_source = traced("video_store", "relink_source", relink_source);
+const __t_clear_notice = traced("video_store", "clear_notice", clear_notice);
+const __t_say_notice = traced("video_store", "say_notice", say_notice);
+const __t_open_in_library = traced("video_store", "open_in_library", open_in_library);
+const __t_set_queue_origin = traced("video_store", "set_queue_origin", set_queue_origin);
+const __t_queue_add = traced("video_store", "queue_add", queue_add);
+const __t_clear_said = traced("video_store", "clear_said", clear_said);
+const __t_queue_remove_at = traced("video_store", "queue_remove_at", queue_remove_at);
+const __t_queue_move = traced("video_store", "queue_move", queue_move);
+const __t_queue_clear = traced("video_store", "queue_clear", queue_clear);
+const __t_queue_play_at = traced("video_store", "queue_play_at", queue_play_at);
+const __t_play_list = traced("video_store", "play_list", play_list);
+const __t_play_temp = traced("video_store", "play_temp", play_temp);
+const __t_temp_next = traced("video_store", "temp_next", temp_next);
+const __t_temp_prev = traced("video_store", "temp_prev", temp_prev);
+const __t_back_to_deck = traced("video_store", "back_to_deck", back_to_deck);
+const __t_store_deck = traced("video_store", "store_deck", store_deck);
+const __t_restore_queue = traced("video_store", "restore_queue", restore_queue);
+const __t_reload_current = traced("video_store", "reload_current", reload_current);
+const __t_dock_video = traced("video_store", "dock_video", dock_video);
+const __t_toggle = traced("video_store", "toggle", toggle);
+const __t_pause = traced("video_store", "pause", pause);
+const __t_step = traced("video_store", "step", step);
+const __t_prev = traced("video_store", "prev", prev);
+const __t_seek_by = traced("video_store", "seek_by", seek_by);
+const __t_seek_fraction = traced("video_store", "seek_fraction", seek_fraction);
+const __t_set_rate = traced("video_store", "set_rate", set_rate);
+const __t_forget_resumed = traced("video_store", "forget_resumed", forget_resumed);
+const __t_start_over = traced("video_store", "start_over", start_over);
+const __t_set_subtitle = traced("video_store", "set_subtitle", set_subtitle);
+const __t_set_ui_language = traced("video_store", "set_ui_language", set_ui_language);
+const __t_media_action = traced("video_store", "media_action", media_action);
+const __t_on_metadata = traced("video_store", "on_metadata", on_metadata);
+const __t_on_canplay = traced("video_store", "on_canplay", on_canplay);
+const __t_on_ended = traced("video_store", "on_ended", on_ended);
+const __t_on_media_error = traced("video_store", "on_media_error", on_media_error);
+
 export {
     subscribe,
     key_of,
     /*  library */
     has_library,
     video_count,
-    begin_read,
-    ingest,
-    cancel_ingest,
+    __t_begin_read as begin_read,
+    __t_ingest as ingest,
+    __t_cancel_ingest as cancel_ingest,
     tags_of_source,
-    restore_tracks,
+    __t_restore_tracks as restore_tracks,
     set_file_resolver,
     resolve_file,
-    drop_source_tracks,
-    unlist_source_tracks,
-    relink_source,
+    __t_drop_source_tracks as drop_source_tracks,
+    __t_unlist_source_tracks as unlist_source_tracks,
+    __t_relink_source as relink_source,
     store_state,
-    clear_notice,
-    say_notice,
+    __t_clear_notice as clear_notice,
+    __t_say_notice as say_notice,
     series,
     series_by_id,
     others,
@@ -1816,72 +1869,72 @@ export {
     find_video,
     find_uid,
     facts_of,
-    open_in_library,
+    __t_open_in_library as open_in_library,
     take_open_request,
     /*  deck */
     queue_tracks,
     queue_origin,
-    set_queue_origin,
+    __t_set_queue_origin as set_queue_origin,
     queue_index,
     queue_length,
-    queue_add,
+    __t_queue_add as queue_add,
     last_said,
-    clear_said,
-    queue_remove_at,
-    queue_move,
-    queue_clear,
-    queue_play_at,
-    play_list,
+    __t_clear_said as clear_said,
+    __t_queue_remove_at as queue_remove_at,
+    __t_queue_move as queue_move,
+    __t_queue_clear as queue_clear,
+    __t_queue_play_at as queue_play_at,
+    __t_play_list as play_list,
     queue_position,
     /*  temporary list */
-    play_temp,
-    temp_next,
-    temp_prev,
-    back_to_deck,
+    __t_play_temp as play_temp,
+    __t_temp_next as temp_next,
+    __t_temp_prev as temp_prev,
+    __t_back_to_deck as back_to_deck,
     temp_track,
     temp_playing,
     temp_position,
     temp_tracks,
     /*  across a reload */
     queue_snapshot,
-    store_deck,
+    __t_store_deck as store_deck,
     set_deck_ready,
-    restore_queue,
-    reload_current,
+    __t_restore_queue as restore_queue,
+    __t_reload_current as reload_current,
     /*  the element */
     get_video,
-    dock_video,
+    __t_dock_video as dock_video,
     sounding,
     current_track,
     is_playing,
     is_sounding,
-    toggle,
-    pause,
-    step,
-    prev,
-    seek_by,
-    seek_fraction,
+    __t_toggle as toggle,
+    __t_pause as pause,
+    __t_step as step,
+    __t_prev as prev,
+    __t_seek_by as seek_by,
+    __t_seek_fraction as seek_fraction,
     progress,
     RATES,
-    set_rate,
+    __t_set_rate as set_rate,
     get_rate,
     set_resume_lookup,
     resumed,
-    forget_resumed,
-    start_over,
+    __t_forget_resumed as forget_resumed,
+    __t_start_over as start_over,
     /*  subtitles */
     subtitle_tracks,
     current_subtitle,
-    set_subtitle,
-    set_ui_language,
+    __t_set_subtitle as set_subtitle,
+    __t_set_ui_language as set_ui_language,
     /*  system */
     set_thumb_lookup,
     setup_media_session,
-    media_action,
+    __t_media_action as media_action,
     /*  what the element said */
-    on_metadata,
-    on_canplay,
-    on_ended,
-    on_media_error,
+    __t_on_metadata as on_metadata,
+    __t_on_canplay as on_canplay,
+    __t_on_ended as on_ended,
+    __t_on_media_error as on_media_error,
     fmt_time,
 };

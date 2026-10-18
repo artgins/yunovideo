@@ -55,12 +55,17 @@ const MATCH = {ignoreSearch: true, ignoreVary: true};
 self.addEventListener("install", function(ev) {
     ev.waitUntil((async function() {
         const cache = await caches.open(CACHE);
-        await cache.addAll(CORE);
-        await Promise.allSettled(EXTRA.map((u) => cache.add(u)));
-        /*  Take over as soon as the shell is stored. This app is a
-            single bundle with no lazy chunks, so there is no half-old
-            half-new state to protect against; waiting would only mean a
-            deploy takes two launches to arrive. */
+        /*  `reload`: from the server, never from the HTTP cache. A shell
+            precached out of a stale HTTP cache is an old index.html
+            stored as the new one, and served from here for good. */
+        const fresh = (u) => new Request(u, {cache: "reload"});
+        await cache.addAll(CORE.map(fresh));
+        await Promise.allSettled(EXTRA.map((u) => cache.add(fresh(u))));
+        /*  Take over as soon as the shell is stored, or a deploy takes
+            two launches to arrive. The one lazy chunk (the developer
+            sheet's traces panel) can be missing for a tab still on the
+            old bundle: that tab is told a new version is out, and the
+            panel says why it did not load. */
         await self.skipWaiting();
     })());
 });

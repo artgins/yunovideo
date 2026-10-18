@@ -35,6 +35,7 @@ import {
     gobj_parent,
     gobj_read_attr, gobj_read_pointer_attr, gobj_write_attr,
     gobj_subscribe_event, gobj_send_event,
+    gobj_current_state, gobj_change_state,
     createElement2, refresh_language,
 } from "@yuneta/gobj-js";
 
@@ -60,6 +61,7 @@ import {
     subscribe_install, install_bar_due, dismiss_install_bar,
 } from "./install_prompt.js";
 import {open_install} from "./install_dialog.js";
+import {dialog_action} from "./dialogs.js";
 import {open_card, card_action} from "./video_card.js";
 import {thumb_button, name_button, meta_line, watched_bar, refresh_rows} from "./rows.js";
 import {
@@ -107,8 +109,6 @@ let PRIVATE_DATA = {
     $queue:     null,
     dragging:   false,
     maxq:       false,
-    asking_clear: false,
-    saving:     false,
     on_deck:    false,
 };
 
@@ -155,8 +155,6 @@ function mt_start(gobj)
     let priv = gobj.priv;
     const send = (channel) => gobj_send_event(gobj, "EV_STORE", {channel: channel}, gobj);
 
-    priv.asking_clear = false;
-    priv.saving = false;
     priv.unsubs = [
         subscribe(send),
         subscribe_sources(() => send("sources")),
@@ -624,14 +622,20 @@ function paint_queue(gobj)
     /*  Two ends of one line: what is rare and destroys at the start,
         what is used all the time at the end. */
     let start = [];
-    if(priv.asking_clear) {
+    /*  The two questions the queue can ask are STATES of this gobj:
+        their yes and no are defined only there, so one arriving at
+        any other moment fails loudly and names its sender. */
+    let state = gobj_current_state(gobj);
+    let asking_clear = (state === "ST_ASKING_CLEAR");
+    let saving = (state === "ST_SAVING");
+    if(asking_clear) {
         start.push(["button", {class: "VID_QBTN button is-danger VID_QCLEAR_YES", type: "button",
                                ...named("clear the queue?")}, [
             ico(P.sweep, 18), ["span", {class: "VID_QLABEL", i18n: "clear the queue?"}, t("clear the queue?")]
         ], {click: send("EV_CLEAR_YES")}]);
         start.push(["button", {class: "VID_QBTN button VID_QCLEAR_NO", type: "button", i18n: "cancel",
                                ...named("cancel")}, t("cancel"), {click: send("EV_CLEAR_NO")}]);
-    } else if(priv.saving) {
+    } else if(saving) {
         start.push(["input", {class: "input VID_SAVENAME", type: "text", value: draft,
                               ...named("list name"), placeholder: t("list name"),
                               "data-i18n-placeholder": "list name"}, [],
@@ -671,7 +675,7 @@ function paint_queue(gobj)
             ["span", {class: "VID_QLABEL", i18n: key}, t(key)]
         ], {click: send("EV_MAXQ")}]);
     }
-    let actions = ["div", {class: "VID_QLINE" + (priv.asking_clear || priv.saving ? " is-asking" : "")}, [
+    let actions = ["div", {class: "VID_QLINE" + (asking_clear || saving ? " is-asking" : "")}, [
         ["div", {class: "VID_QSTART"}, start],
         ["div", {class: "VID_QEND"}, end]
     ]];
@@ -784,8 +788,7 @@ function ac_route_changed(gobj, event, kw, src)
     if(!priv.on_deck) {
         /*  A question left standing must not be standing minutes later
             where the plain button was. */
-        priv.asking_clear = false;
-        priv.saving = false;
+        gobj_change_state(gobj, "ST_IDLE");
         return 0;
     }
     paint_all(gobj);
@@ -913,15 +916,12 @@ function ac_remove(gobj, event, kw, src)
 
 function ac_clear_ask(gobj, event, kw, src)
 {
-    gobj.priv.asking_clear = true;
-    gobj.priv.saving = false;
     paint_queue(gobj);
     return 0;
 }
 
 function ac_clear_yes(gobj, event, kw, src)
 {
-    gobj.priv.asking_clear = false;
     queue_clear();
     paint_queue(gobj);
     return 0;
@@ -929,15 +929,12 @@ function ac_clear_yes(gobj, event, kw, src)
 
 function ac_clear_no(gobj, event, kw, src)
 {
-    gobj.priv.asking_clear = false;
     paint_queue(gobj);
     return 0;
 }
 
 function ac_save_ask(gobj, event, kw, src)
 {
-    gobj.priv.saving = true;
-    gobj.priv.asking_clear = false;
     paint_queue(gobj);
     let $in = gobj.priv.$queue.querySelector(".VID_SAVENAME");
     if($in) {
@@ -948,7 +945,6 @@ function ac_save_ask(gobj, event, kw, src)
 
 function ac_save_yes(gobj, event, kw, src)
 {
-    gobj.priv.saving = false;
     save_queue_as(String(kw.name || "").trim() || t("untitled list"));
     paint_queue(gobj);
     return 0;
@@ -956,7 +952,6 @@ function ac_save_yes(gobj, event, kw, src)
 
 function ac_save_no(gobj, event, kw, src)
 {
-    gobj.priv.saving = false;
     paint_queue(gobj);
     return 0;
 }
@@ -1020,8 +1015,14 @@ function ac_reload_now(gobj, event, kw, src)
 
 function ac_install(gobj, event, kw, src)
 {
-    open_install(yui_shell_of(gobj));
+    open_install(gobj, yui_shell_of(gobj));
     return 0;
+}
+
+/*  A dialog this view opened (the install question) speaks. */
+function ac_dialog(gobj, event, kw, src)
+{
+    return dialog_action(gobj, kw);
 }
 
 function ac_install_close(gobj, event, kw, src)
@@ -1059,42 +1060,57 @@ function create_gclass(gclass_name)
         return -1;
     }
 
+    /*  What the view does in every state; each state adds what only it
+        can answer. */
+    const common = [
+        ["EV_STORE",            ac_store,           null],
+        ["EV_LANGUAGE_CHANGED", ac_language_changed, null],
+        ["EV_ROUTE_CHANGED",    ac_route_changed,   null],
+        ["EV_TOGGLE_PLAY",      ac_toggle_play,     null],
+        ["EV_PREV",             ac_prev,            null],
+        ["EV_NEXT",             ac_next,            null],
+        ["EV_SEEK_BY",          ac_seek_by,         null],
+        ["EV_SEEK",             ac_seek,            null],
+        ["EV_SET_RATE",         ac_set_rate,        null],
+        ["EV_SET_SUB",          ac_set_sub,         null],
+        ["EV_TOGGLE_MUTE",      ac_toggle_mute,     null],
+        ["EV_FULLSCREEN",       ac_fullscreen,      null],
+        ["EV_PIP",              ac_pip,             null],
+        ["EV_START_OVER",       ac_start_over,      null],
+        ["EV_BACK_TO_DECK",     ac_back_to_deck,    null],
+        ["EV_PLAY_AT",          ac_play_at,         null],
+        ["EV_MOVE",             ac_move,            null],
+        ["EV_REMOVE",           ac_remove,          null],
+        ["EV_MAXQ",             ac_maxq,            null],
+        ["EV_OPEN_CARD",        ac_open_card,       null],
+        ["EV_CARD_ACTION",      ac_card_action,     null],
+        ["EV_CLEAR_NOTICE",     ac_clear_notice,    null],
+        ["EV_AUTHORIZE",        ac_authorize,       null],
+        ["EV_RELOAD",           ac_reload,          null],
+        ["EV_RELOAD_NOW",       ac_reload_now,      null],
+        ["EV_INSTALL",          ac_install,         null],
+        ["EV_DIALOG",           ac_dialog,          null],
+        ["EV_INSTALL_CLOSE",    ac_install_close,   null],
+        ["EV_GO",               ac_go,              null]
+    ];
     const states = [
         ["ST_IDLE", [
-            ["EV_STORE",            ac_store,           null],
-            ["EV_LANGUAGE_CHANGED", ac_language_changed, null],
-            ["EV_ROUTE_CHANGED",    ac_route_changed,   null],
-            ["EV_TOGGLE_PLAY",      ac_toggle_play,     null],
-            ["EV_PREV",             ac_prev,            null],
-            ["EV_NEXT",             ac_next,            null],
-            ["EV_SEEK_BY",          ac_seek_by,         null],
-            ["EV_SEEK",             ac_seek,            null],
-            ["EV_SET_RATE",         ac_set_rate,        null],
-            ["EV_SET_SUB",          ac_set_sub,         null],
-            ["EV_TOGGLE_MUTE",      ac_toggle_mute,     null],
-            ["EV_FULLSCREEN",       ac_fullscreen,      null],
-            ["EV_PIP",              ac_pip,             null],
-            ["EV_START_OVER",       ac_start_over,      null],
-            ["EV_BACK_TO_DECK",     ac_back_to_deck,    null],
-            ["EV_PLAY_AT",          ac_play_at,         null],
-            ["EV_MOVE",             ac_move,            null],
-            ["EV_REMOVE",           ac_remove,          null],
-            ["EV_CLEAR_ASK",        ac_clear_ask,       null],
-            ["EV_CLEAR_YES",        ac_clear_yes,       null],
-            ["EV_CLEAR_NO",         ac_clear_no,        null],
-            ["EV_SAVE_ASK",         ac_save_ask,        null],
-            ["EV_SAVE_YES",         ac_save_yes,        null],
-            ["EV_SAVE_NO",          ac_save_no,         null],
-            ["EV_MAXQ",             ac_maxq,            null],
-            ["EV_OPEN_CARD",        ac_open_card,       null],
-            ["EV_CARD_ACTION",      ac_card_action,     null],
-            ["EV_CLEAR_NOTICE",     ac_clear_notice,    null],
-            ["EV_AUTHORIZE",        ac_authorize,       null],
-            ["EV_RELOAD",           ac_reload,          null],
-            ["EV_RELOAD_NOW",       ac_reload_now,      null],
-            ["EV_INSTALL",          ac_install,         null],
-            ["EV_INSTALL_CLOSE",    ac_install_close,   null],
-            ["EV_GO",               ac_go,              null]
+            ...common,
+            ["EV_CLEAR_ASK",        ac_clear_ask,       "ST_ASKING_CLEAR"],
+            ["EV_SAVE_ASK",         ac_save_ask,        "ST_SAVING"]
+        ]],
+        /*  "Clear the queue?" is standing. */
+        ["ST_ASKING_CLEAR", [
+            ...common,
+            ["EV_CLEAR_YES",        ac_clear_yes,       "ST_IDLE"],
+            ["EV_CLEAR_NO",         ac_clear_no,        "ST_IDLE"],
+            ["EV_SAVE_ASK",         ac_save_ask,        "ST_SAVING"]
+        ]],
+        /*  The name of a list is being typed. */
+        ["ST_SAVING", [
+            ...common,
+            ["EV_SAVE_YES",         ac_save_yes,        "ST_IDLE"],
+            ["EV_SAVE_NO",          ac_save_no,         "ST_IDLE"]
         ]]
     ];
 
@@ -1131,6 +1147,7 @@ function create_gclass(gclass_name)
         ["EV_RELOAD",           0],
         ["EV_RELOAD_NOW",       0],
         ["EV_INSTALL",          0],
+        ["EV_DIALOG",           0],
         ["EV_INSTALL_CLOSE",    0],
         ["EV_GO",               0]
     ];

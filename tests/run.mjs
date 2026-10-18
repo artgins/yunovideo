@@ -44,6 +44,8 @@ const TESTS = [
     {name: "names_dom", what: "no control without title and aria-label, two languages"},
     {name: "fitmobile", what: "nothing runs off a phone's width"},
     {name: "offline",   what: "no network: it boots and plays from the device"},
+    {name: "dialogs",   what: "dialogs and questions answer through the machine"},
+    {name: "trace",     what: "outside the machine is no blind spot: the stores trace"},
     {name: "focus",     what: "while a video plays, focus and scroll stay, hidden draws nothing"}
 ];
 

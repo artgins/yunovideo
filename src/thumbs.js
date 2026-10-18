@@ -34,6 +34,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {traced, trace_emit, store_trace} from "./trace.js";
 import {
     STORE_THUMBS, idb_all, idb_put, idb_del, idb_del_prefix,
 } from "./idb.js";
@@ -84,6 +85,7 @@ function subscribe_thumbs(fn)
 
 function emit()
 {
+    trace_emit("thumbs", "thumbs");
     for(const fn of listeners) {
         try {
             fn("thumbs");
@@ -256,6 +258,7 @@ function observe($box)
     }
     if(!S.observer) {
         S.observer = new IntersectionObserver(function(entries) {
+            store_trace("thumbs", "rows on screen", entries.filter((e) => e.isIntersecting).length);
             for(const e of entries) {
                 if(e.isIntersecting) {
                     S.observer.unobserve(e.target);
@@ -351,6 +354,7 @@ async function make(video)
         return;
     }
 
+    store_trace("thumbs", "read", {path: video.path, failure: failure, picture: !!row.blob});
     if(failure !== null) {
         diag("thumb_fail", {code: failure});
         if(failure !== NOT_SUPPORTED) {
@@ -519,14 +523,21 @@ function thumbs_held()
 }
 
 
+
+/*  What the interface calls, traced (see trace.js): the store's own
+    calls to these stay untraced. */
+const __t_load_thumbs = traced("thumbs", "load_thumbs", load_thumbs);
+const __t_drop_source_thumbs = traced("thumbs", "drop_source_thumbs", drop_source_thumbs);
+const __t_forget_bad = traced("thumbs", "forget_bad", forget_bad);
+
 export {
-    load_thumbs,
+    __t_load_thumbs as load_thumbs,
     subscribe_thumbs,
     thumb_url,
     thumb_info,
     is_unplayable,
     paint_thumb,
-    drop_source_thumbs,
-    forget_bad,
+    __t_drop_source_thumbs as drop_source_thumbs,
+    __t_forget_bad as forget_bad,
     thumbs_held,
 };

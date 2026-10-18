@@ -130,17 +130,22 @@ function close_card(from_history)
     uid_open = 0;
 }
 
+/*  A size: the figure, and its unit as a key of its own ("Go" in
+    French, "ГБ" in Russian), so it changes language with the rest. */
 function size_of(bytes)
 {
     if(!bytes) {
         return "";
     }
     if(bytes >= 1073741824) {
-        return (bytes / 1073741824).toFixed(2) + " GB";
+        return [["span", {}, (bytes / 1073741824).toFixed(2)],
+                ["span", {class: "VID_UNIT", i18n: "unit gb"}, t("unit gb")]];
     }
-    return Math.round(bytes / 1048576) + " MB";
+    return [["span", {}, String(Math.round(bytes / 1048576))],
+            ["span", {class: "VID_UNIT", i18n: "unit mb"}, t("unit mb")]];
 }
 
+/*  `value` is a text, or nodes when part of it is translated. */
 function line(key, value)
 {
     if(!value && value !== 0) {
@@ -148,7 +153,7 @@ function line(key, value)
     }
     return ["div", {class: "VID_CARD_LINE"}, [
         ["span", {class: "VID_CARD_K", i18n: key}, t(key)],
-        ["span", {class: "VID_CARD_V"}, String(value)]
+        ["span", {class: "VID_CARD_V"}, Array.isArray(value) ? value : String(value)]
     ]];
 }
 
@@ -260,7 +265,7 @@ function paint()
             button("VID_CARD_PLAY is-primary", "play", P.play, "play"),
             button("VID_CARD_ADD", "add to queue", P.enqueue, "add"),
             button("VID_CARD_HEART", "give a heart", P.heart, "heart"),
-            button("VID_CARD_UNHEART", "take a heart back", P.heart, "unheart", st.hearts ? "" : " is-hidden"),
+            button("VID_CARD_UNHEART", "take a heart back", P.unheart, "unheart", st.hearts ? "" : " is-hidden"),
             button("VID_CARD_FORGET", "forget the place", P.restart, "forget_place", st.pos ? "" : " is-hidden"),
             button("VID_CARD_RESET is-danger is-light", "forget these counts", P.trash, "reset",
                    (st.views || st.hearts || st.pos) ? "" : " is-hidden"),

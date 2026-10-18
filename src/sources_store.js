@@ -31,6 +31,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {traced, trace_emit, store_trace} from "./trace.js";
 import {log_warning, log_error} from "@yuneta/gobj-js";
 
 import {
@@ -73,6 +74,7 @@ function subscribe_sources(fn)
 
 function emit()
 {
+    trace_emit("sources_store", "sources");
     for(const fn of listeners) {
         try {
             fn("sources");
@@ -104,6 +106,21 @@ const S = {
     pending: null,          // a folder waiting on the user's answer to that notice
 };
 
+/*  What a pick held that is not read here, by extension, the eight
+    commonest: for the diagnostics. */
+function left_out(picked)
+{
+    let rejected = new Map();
+    for(const f of picked) {
+        if(is_video(f) || is_subtitle(f)) {
+            continue;
+        }
+        let ext = (f.name.match(/\.[^.]{1,5}$/) || ["(none)"])[0].toLowerCase();
+        rejected.set(ext, (rejected.get(ext) || 0) + 1);
+    }
+    return [...rejected.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+}
+
 /*  Put the relative path back on a File that came out of store, so it
     reads the same as one straight from the picker. */
 function with_path(f, path)
@@ -112,8 +129,8 @@ function with_path(f, path)
         try {
             Object.defineProperty(f, "webkitRelativePath", {value: path});
         } catch(e) {
-            /*  Frozen File: the path lookup will miss for this one and it
-                gets read again, which is correct, just slower. */
+            /*  Frozen File: the path lookup misses for this one, and it
+                cannot be found by its path until it is picked again. */
         }
     }
     return f;
@@ -430,6 +447,7 @@ async function persist(source)
         count:  source.count || 0,
         seen:   source.seen || 0,
         walk:   source.walk || null,
+        left:   source.left || null,
     });
 
     if(ok && source.kind === "files" && source.files) {
@@ -609,17 +627,11 @@ async function diagnose()
         }
 
         /*  Of the files that were NOT taken, what were they? A handful of
-            extensions explains a count gap far better than the gap does. */
-        if(s.kind === "files" && s.files && s.files.length) {
-            let rejected = new Map();
-            for(const f of s.files) {
-                if(is_video(f) || is_subtitle(f)) {
-                    continue;
-                }
-                let ext = (f.name.match(/\.[^.]{1,5}$/) || ["(none)"])[0].toLowerCase();
-                rejected.set(ext, (rejected.get(ext) || 0) + 1);
-            }
-            let top = [...rejected.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+            extensions explains a count gap far better than the gap does.
+            Counted at the pick (left_out): only what is kept is stored,
+            so the stored files can no longer say. */
+        if(s.kind === "files") {
+            let top = s.left || [];
             add("   not video", top.length
                 ? top.map(([e, n2]) => e + "×" + n2).join(" ")
                 : "none");
@@ -897,7 +909,11 @@ function ensure_inputs()
             el.setAttribute("webkitdirectory", "");
             el.setAttribute("directory", "");
         } else {
-            el.accept = "video/*,.mp4,.m4v,.webm,.mkv,.mov,.ogv,.avi,.srt,.vtt";
+            /*  Every extension VIDEO_RE knows: a MIME type is not enough —
+                on Linux a .ts is text/vnd.qt.linguist, and .mts, .m2ts,
+                .wmv or .flv are not video/* everywhere. */
+            el.accept = "video/*,.mp4,.m4v,.webm,.mkv,.mov,.ogv,.avi,.wmv,.flv,.3gp,.3g2," +
+                ".mpg,.mpeg,.ts,.m2ts,.mts,.srt,.vtt";
         }
         document.body.appendChild(el);
         return el;
@@ -927,6 +943,7 @@ function pick_with_input(as_dir)
             precisely where the app looked dead. While the picker is
             still open the bar is behind it anyway. */
         let armed = setTimeout(function() {
+            store_trace("sources_store", "picker still open");
             if(S.preparing !== true) {
                 S.preparing = true;
                 emit();
@@ -934,6 +951,7 @@ function pick_with_input(as_dir)
         }, 400);
         const on_focus = function() {};
         const cancelled = function() {
+            store_trace("sources_store", "picker cancelled");
             cleanup();
             resolve("");
         };
@@ -948,6 +966,7 @@ function pick_with_input(as_dir)
             el.removeEventListener("cancel", cancelled);
         };
         const done = async function() {
+            store_trace("sources_store", "picker change", {files: el.files.length});
             cleanup();
             let picked = [...el.files];
             el.value = "";                          // let the same pick fire again
@@ -1015,6 +1034,7 @@ function pick_with_input(as_dir)
                 added: Date.now(),
                 count: 0,
                 seen: picked.length,
+                left: left_out(picked),
             };
             S.sources.push(source);
             rt(source.id).permission = "granted";
@@ -1195,10 +1215,10 @@ async function scan_now(id, force)
         return 0;
     }
 
-    /*  How many files the walk actually handed over, audio or not, and
+    /*  How many files the walk actually handed over, video or not, and
         BEFORE anything below drops any of them. Two browsers reporting
-        different track counts for the same folder is either a different
-        WALK or a different idea of what counts as audio, and only this
+        different video counts for the same folder is either a different
+        WALK or a different idea of what counts as video, and only this
         number tells them apart. */
     if(source.kind === "dir") {
         source.seen = files.length;
@@ -1362,6 +1382,20 @@ function scanning_source()
 }
 
 
+
+/*  What the interface calls, traced (see trace.js): the store's own
+    calls to these stay untraced. */
+const __t_load_sources = traced("sources_store", "load_sources", load_sources);
+const __t_stop_scan = traced("sources_store", "stop_scan", stop_scan);
+const __t_add_dir = traced("sources_store", "add_dir", add_dir);
+const __t_add_files = traced("sources_store", "add_files", add_files);
+const __t_dismiss_notice = traced("sources_store", "dismiss_notice", dismiss_notice);
+const __t_accept_notice = traced("sources_store", "accept_notice", accept_notice);
+const __t_authorize = traced("sources_store", "authorize", authorize);
+const __t_authorize_all = traced("sources_store", "authorize_all", authorize_all);
+const __t_scan = traced("sources_store", "scan", scan);
+const __t_remove_source = traced("sources_store", "remove_source", remove_source);
+
 export {
     subscribe_sources,
     fsa_supported,
@@ -1371,20 +1405,20 @@ export {
     is_blocked,
     diagnose,
     is_preparing,
-    stop_scan,
+    __t_stop_scan as stop_scan,
     is_stopping,
-    load_sources,
+    __t_load_sources as load_sources,
     all_sources,
     source_name,
     scanning_source,
-    add_dir,
-    add_files,
+    __t_add_dir as add_dir,
+    __t_add_files as add_files,
     source_notice,
-    dismiss_notice,
-    accept_notice,
-    authorize,
-    authorize_all,
+    __t_dismiss_notice as dismiss_notice,
+    __t_accept_notice as accept_notice,
+    __t_authorize as authorize,
+    __t_authorize_all as authorize_all,
     pending_authorisation,
-    scan,
-    remove_source,
+    __t_scan as scan,
+    __t_remove_source as remove_source,
 };

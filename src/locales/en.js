@@ -290,6 +290,12 @@ const en = {
         /*  ---- counts: every CLDR form the language has ---- */
         "n videos_one": "video",
         "n videos_other": "videos",
+        "the stores": "The stores",
+        "trace the stores": "Trace the stores: calls, channels and browser callbacks",
+        "the stores' clock": "The stores' clock",
+        "trace the stores' clock": "Trace the stores' clock, four a second while playing",
+        "unit gb": "GB",
+        "unit mb": "MB",
         "n views_one": "view",
         "n views_other": "views",
         "n hearts_one": "Heart",

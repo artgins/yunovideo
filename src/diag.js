@@ -39,6 +39,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {store_trace} from "./trace.js";
 
 /*  The journal: an array of {t, e, d} — when, what, details. */
 const KEY_LOG = "yunovideo_diag";
@@ -46,7 +47,7 @@ const KEY_LOG = "yunovideo_diag";
     drag the whole journal through JSON.stringify every fifteen seconds. */
 const KEY_BEAT = "yunovideo_diag_beat";
 
-/*  Two nights of listening, about. Old entries fall off the front; the
+/*  Two nights of watching, about. Old entries fall off the front; the
     boot records are what matter and there are only a handful a day. */
 const MAX_ENTRIES = 400;
 
@@ -128,6 +129,8 @@ function write_journal(arr)
  ***************************************************************/
 function diag(e, d)
 {
+    /*  Every line of the journal is also a line of the trace. */
+    store_trace("diag", e, d);
     try {
         let arr = read_journal();
         arr.push({t: Date.now(), e: e, d: d || {}});
@@ -230,7 +233,7 @@ function device_memory()
 
 /*  The host registers a function that says what the app is doing, so a
     death can be described in the terms the user will use: "it stopped
-    while Lady Fantasy was playing". */
+    while Arrival was playing". */
 function diag_watch(fn)
 {
     probe = (typeof fn === "function") ? fn : null;
@@ -238,6 +241,7 @@ function diag_watch(fn)
 
 function beat()
 {
+    store_trace("diag", "heartbeat");
     let state = {};
     if(probe) {
         try {

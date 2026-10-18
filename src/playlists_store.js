@@ -17,6 +17,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {traced, trace_emit, store_trace} from "./trace.js";
 import {STORE_PLAYLISTS, idb_all, idb_put, idb_del} from "./idb.js";
 import {queue_tracks, find_video, set_queue_origin} from "./video_store.js";
 
@@ -36,6 +37,7 @@ function subscribe_playlists(fn)
 
 function emit()
 {
+    trace_emit("playlists_store", "playlists");
     for(const fn of listeners) {
         try {
             fn("playlists");
@@ -173,13 +175,21 @@ function entries_of(id)
 }
 
 
+
+/*  What the interface calls, traced (see trace.js): the store's own
+    calls to these stay untraced. */
+const __t_load_playlists = traced("playlists_store", "load_playlists", load_playlists);
+const __t_save_queue_as = traced("playlists_store", "save_queue_as", save_queue_as);
+const __t_remove_playlist = traced("playlists_store", "remove_playlist", remove_playlist);
+const __t_rename_playlist = traced("playlists_store", "rename_playlist", rename_playlist);
+
 export {
     subscribe_playlists,
-    load_playlists,
+    __t_load_playlists as load_playlists,
     all_playlists,
-    save_queue_as,
-    remove_playlist,
-    rename_playlist,
+    __t_save_queue_as as save_queue_as,
+    __t_remove_playlist as remove_playlist,
+    __t_rename_playlist as rename_playlist,
     resolve,
     entries_of,
 };

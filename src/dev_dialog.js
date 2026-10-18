@@ -19,10 +19,18 @@
  *      one event that turns the tracing off, which is precisely the
  *      event we are trying to watch.
  *
+ *      Its controls send EV_DIALOG {dialog: "dev"} to the gobj that
+ *      opened it, and that gobj's action hands the kw to dev_action().
+ *      So do the answers that come late: the traces panel loaded, the
+ *      clipboard done.
+ *
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
-import {createElement2, refresh_language, log_error, log_warning} from "@yuneta/gobj-js";
+import {
+    createElement2, refresh_language, log_error, log_warning, gobj_send_event,
+    gobj_command, gobj_yuno, gobj_get_gclass_trace_level2,
+} from "@yuneta/gobj-js";
 
 import {yui_shell_show_modal} from "@yuneta/gobj-ui/src/shell_modals.js";
 import {named} from "./ui.js";
@@ -35,30 +43,91 @@ import {
 import {t} from "i18next";
 
 
+/*  The app's trace levels: [level of C_YUNOVIDEO, label key, title key]. */
+const APP_TRACES = [
+    ["stores",      "the stores",       "trace the stores"],
+    ["stores-time", "the stores' clock", "trace the stores' clock"],
+];
+export const APP_TRACE_I18N_KEYS = [
+    "the stores", "trace the stores", "the stores' clock", "trace the stores' clock",
+];
+const APP_GCLASS = "C_YUNOVIDEO";
+
+/*  Set through the yuno's own command, as gobj-ui's chips do: the yuno
+    keeps the levels across launches. */
+function toggle_app_trace(level)
+{
+    let on = gobj_get_gclass_trace_level2(APP_GCLASS).includes(level);
+    let r = gobj_command(gobj_yuno(), "set-gclass-trace",
+        {gclass_name: APP_GCLASS, level: level, set: on ? 0 : 1}, gobj_yuno());
+    if(!r || r.result < 0) {
+        log_error(`dev_dialog: set-gclass-trace ${level}: ${r ? r.comment : "no answer"}`);
+    }
+    paint_app_traces();
+}
+
+function paint_app_traces()
+{
+    let levels = gobj_get_gclass_trace_level2(APP_GCLASS);
+    for(const $b of panes.$traces.querySelectorAll(".VID_DEV_CHIP")) {
+        let on = levels.includes($b.getAttribute("data-level"));
+        $b.classList.toggle("is-on", on);
+        $b.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+}
+
 /*  The open sheet, so a second tap on the menu closes it instead of
     stacking a second one. */
 let $sheet = null;
+let opener = null;          // the gobj that opened it, and gets its events
+let panes = null;           // {$tabs, $log, $traces}
+let loaded_traces = false;
+let traces_mod = null;      // gobj-ui's yui_dev module, once loaded
 /*  What the traces panel wants doing when the sheet goes away (it turns
     the inter-event tap back off). */
 let dispose_traces = null;
+let paint_log = null;       // repaints the session log pane
+let $copy_btn = null;
+
+
+function send(act, extra)
+{
+    if(!opener) {
+        log_error(`dev_dialog: ${act} with no opener`);
+        return;
+    }
+    gobj_send_event(opener, "EV_DIALOG", Object.assign({dialog: "dev", act: act}, extra || {}), opener);
+}
 
 
 /***************************************************************
  *          Open / close
  ***************************************************************/
-function open_developer(shell)
+function open_developer(gobj, shell)
 {
     if($sheet) {
         close_developer();
         return;
     }
+    opener = gobj;
+    loaded_traces = false;
 
     let $body = createElement2(["div", {class: "VID_DEV"}, []]);
 
     let $log_pane = build_log_pane();
+    /*  The app's own levels first: what the stores do outside the
+        machine (trace.js). gobj-ui's panel, below, has chips for the
+        framework's levels and none for an app's. */
     let $trace_pane = createElement2(
         ["div", {class: "VID_DEV_PANE VID_DEV_TRACES", hidden: "hidden"}, [
-            ["p", {class: "VID_DEV_WAIT", i18n: "loading"}, t("loading")]
+            ["div", {class: "VID_DEV_APPTRACES"}, APP_TRACES.map(([level, key, title]) =>
+                ["button", {class: "VID_DEV_CHIP button is-small", type: "button",
+                            "data-level": level, i18n: /* i18n: APP_TRACE_I18N_KEYS */ key,
+                            ...named(title)},
+                    t(/* i18n: APP_TRACE_I18N_KEYS */ key), {click: () => send("trace", {level: level})}])],
+            ["div", {class: "VID_DEV_TRACES_PANEL"}, [
+                ["p", {class: "VID_DEV_WAIT", i18n: "loading"}, t("loading")]
+            ]]
         ]]
     );
 
@@ -66,35 +135,19 @@ function open_developer(shell)
         ["div", {class: "VID_DEV_TABS", role: "tablist"}, [
             ["button", {class: "VID_DEV_TAB is-on", type: "button",
                         "data-pane": "log", i18n: "session log", ...named("session log")},
-                t("session log")],
+                t("session log"), {click: () => send("tab", {pane: "log"})}],
             ["button", {class: "VID_DEV_TAB", type: "button",
                         "data-pane": "traces", i18n: "traces", ...named("traces")},
-                t("traces")]
+                t("traces"), {click: () => send("tab", {pane: "traces"})}]
         ]]
     );
 
     $body.appendChild($tabs);
     $body.appendChild($log_pane);
     $body.appendChild($trace_pane);
-
-    let loaded_traces = false;
-
-    $tabs.addEventListener("click", function(ev) {
-        let $btn = ev.target.closest(".VID_DEV_TAB");
-        if(!$btn) {
-            return;
-        }
-        let want = $btn.getAttribute("data-pane");
-        for(const $b of $tabs.querySelectorAll(".VID_DEV_TAB")) {
-            $b.classList.toggle("is-on", $b === $btn);
-        }
-        $log_pane.hidden = (want !== "log");
-        $trace_pane.hidden = (want !== "traces");
-        if(want === "traces" && !loaded_traces) {
-            loaded_traces = true;
-            load_traces($trace_pane);
-        }
-    });
+    panes = {$tabs: $tabs, $log: $log_pane, $traces: $trace_pane,
+             $panel: $trace_pane.querySelector(".VID_DEV_TRACES_PANEL")};
+    paint_app_traces();
 
     let modal = yui_shell_show_modal(shell, $body, {
         dialog:        true,
@@ -102,7 +155,13 @@ function open_developer(shell)
         title:         "developer",
         t:             t,
         on_close:      function() {
+            /*  The shell closed it (its button, Escape, the backdrop):
+                what the sheet holds is let go. */
             $sheet = null;
+            panes = null;
+            paint_log = null;
+            $copy_btn = null;
+            opener = null;
             if(dispose_traces) {
                 try {
                     dispose_traces();
@@ -129,24 +188,97 @@ function close_developer()
 
 
 /***************************************************************
+ *  What its controls do — and what comes back late — run from
+ *  the opener's FSM.
+ ***************************************************************/
+function dev_action(kw)
+{
+    if(!panes) {
+        /*  Closed while an answer was on its way (the panel loading,
+            the clipboard): nothing left to paint it on. */
+        return 0;
+    }
+    switch(kw.act) {
+        case "tab":
+            show_pane(kw.pane);
+            return 0;
+        case "copy":
+            copy_report();
+            return 0;
+        case "copied":
+            mark_copied();
+            return 0;
+        case "copy_by_hand":
+            if(fallback(diag_report())) {
+                mark_copied();
+            }
+            return 0;
+        case "copy_label":
+            if($copy_btn) {
+                $copy_btn.textContent = t($copy_btn.getAttribute("data-i18n") || "copy");
+            }
+            return 0;
+        case "refresh":
+            paint_log(true);
+            return 0;
+        case "clear":
+            diag_clear();
+            paint_log(true);
+            return 0;
+        case "trace":
+            toggle_app_trace(kw.level);
+            return 0;
+        case "traces_loaded":
+            show_traces_panel();
+            return 0;
+        case "traces_failed":
+            clear(panes.$panel);
+            panes.$panel.appendChild(createElement2(
+                ["p", {class: "VID_DEV_WAIT"}, String(kw.message || "")]
+            ));
+            return 0;
+        default:
+            log_error(`dev_dialog: unknown action: ${kw.act}`);
+            return -1;
+    }
+}
+
+function show_pane(want)
+{
+    for(const $b of panes.$tabs.querySelectorAll(".VID_DEV_TAB")) {
+        $b.classList.toggle("is-on", $b.getAttribute("data-pane") === want);
+    }
+    panes.$log.hidden = (want !== "log");
+    panes.$traces.hidden = (want !== "traces");
+    if(want === "traces" && !loaded_traces) {
+        loaded_traces = true;
+        load_traces();
+    }
+}
+
+
+/***************************************************************
  *  The framework panel, fetched only now. A failure here is not
  *  an app failure: the session log — the pane that matters for
  *  the bug this was built for — is already on screen.
  ***************************************************************/
-function load_traces($pane)
+function load_traces()
 {
     import("@yuneta/gobj-ui/src/yui_dev.js").then(function(mod) {
-        let panel = mod.build_dev_panel();
-        clear($pane);
-        $pane.appendChild(panel.$el);
-        dispose_traces = panel.dispose;
-    }).catch(function(err) {
+        traces_mod = mod;
+        send("traces_loaded");
+    }, function(err) {
         log_warning(`dev_dialog: the traces panel did not load: ${(err && err.message) || err}`);
-        clear($pane);
-        $pane.appendChild(createElement2(
-            ["p", {class: "VID_DEV_WAIT"}, String((err && err.message) || err)]
-        ));
+        send("traces_failed", {message: String((err && err.message) || err)});
     });
+}
+
+function show_traces_panel()
+{
+    let panel = traces_mod.build_dev_panel();
+    clear(panes.$panel);
+    panes.$panel.appendChild(panel.$el);
+    dispose_traces = panel.dispose;
 }
 
 
@@ -164,24 +296,22 @@ function build_log_pane()
 
     let $bar = createElement2(
         ["div", {class: "VID_DEV_BAR"}, [
-            ["button", {class: "VID_DEV_BTN button is-small", type: "button",
+            ["button", {class: "VID_DEV_BTN VID_DEV_COPY button is-small", type: "button",
                         i18n: "copy", ...named("copy")},
-                t("copy"), {click: (ev) => copy_report(ev.currentTarget)}],
-            ["button", {class: "VID_DEV_BTN button is-small", type: "button",
+                t("copy"), {click: () => send("copy")}],
+            ["button", {class: "VID_DEV_BTN VID_DEV_REFRESH button is-small", type: "button",
                         i18n: "refresh", ...named("refresh")},
-                t("refresh"), {click: () => paint(true)}],
-            ["button", {class: "VID_DEV_BTN button is-small", type: "button",
+                t("refresh"), {click: () => send("refresh")}],
+            ["button", {class: "VID_DEV_BTN VID_DEV_CLEAR button is-small", type: "button",
                         i18n: "clear log", ...named("clear log")},
-                t("clear log"), {click: () => {
-                    diag_clear();
-                    paint(true);
-                }}]
+                t("clear log"), {click: () => send("clear")}]
         ]]
     );
 
     $pane.appendChild($verdict);
     $pane.appendChild($bar);
     $pane.appendChild($lines);
+    $copy_btn = $bar.querySelector(".VID_DEV_COPY");
 
     function paint(retranslate)
     {
@@ -199,6 +329,9 @@ function build_log_pane()
             : "";
         if(!journal.length) {
             $lines.textContent = t("log empty");
+            $lines.setAttribute("data-i18n", "log empty");
+        } else {
+            $lines.removeAttribute("data-i18n");
         }
         if(retranslate) {
             refresh_language($verdict, t);
@@ -206,6 +339,7 @@ function build_log_pane()
     }
 
     paint(false);
+    paint_log = paint;
     return $pane;
 }
 
@@ -248,7 +382,10 @@ function build_verdict()
         if(death.was_heap !== null) {
             out.push(["p", {class: "VID_DEV_FACT"}, [
                 ["span", {i18n: "memory in use"}, t("memory in use")],
-                ["span", {class: "VID_DEV_VAL"}, death.was_heap + " MB"]
+                ["span", {class: "VID_DEV_VAL"}, [
+                    ["span", {}, String(death.was_heap)],
+                    ["span", {class: "VID_UNIT", i18n: "unit mb"}, t("unit mb")]
+                ]]
             ]]);
         }
     }
@@ -274,32 +411,37 @@ function build_verdict()
 
 
 /*  The clipboard, with the one fallback that still works on a phone
-    with no permission for it: select the text and let the user copy it
-    the way they copy anything else. */
-function copy_report($btn)
+    with no permission for it: a selected textarea and execCommand. The
+    clipboard answers late, and its answer is an event. */
+function copy_report()
 {
     let text = diag_report();
-    /*  Back to its own label, by its key: the text on the button may be
-        "Copied" still, from a press a moment ago. */
-    let done = function() {
-        $btn.textContent = t("copied");
-        setTimeout(function() {
-            $btn.textContent = t($btn.getAttribute("data-i18n") || "copy");
-        }, 1500);
-    };
-    let by_hand = function() {
-        if(fallback(text)) {
-            done();
-        }
-    };
     if(navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function(e) {
+        navigator.clipboard.writeText(text).then(function() {
+            send("copied");
+        }, function(e) {
             log_warning(`dev_dialog: the clipboard refused: ${(e && e.name) || e}`);
-            by_hand();
+            send("copy_by_hand");
         });
         return;
     }
-    by_hand();
+    if(fallback(text)) {
+        mark_copied();
+    }
+}
+
+/*  "Copied" for a moment, then its own label back — by its key: the
+    text on the button may be "Copied" still, from a press a moment
+    ago. */
+function mark_copied()
+{
+    if(!$copy_btn) {
+        return;
+    }
+    $copy_btn.textContent = t("copied");
+    setTimeout(function() {
+        send("copy_label");
+    }, 1500);
 }
 
 function fallback(text)
@@ -333,4 +475,4 @@ function clear($node)
 }
 
 
-export {open_developer, close_developer};
+export {open_developer, close_developer, dev_action};

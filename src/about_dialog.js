@@ -13,10 +13,14 @@
  *      It registers itself as a shell overlay, which buys the browser
  *      Back button, and on the shell's Escape stack, which buys Escape.
  *
+ *      It does not act on its own: its close button, its backdrop and
+ *      Escape send EV_DIALOG {dialog: "about"} to the gobj that opened
+ *      it, and that gobj's action hands the kw to about_action().
+ *
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
-import {createElement2, refresh_language} from "@yuneta/gobj-js";
+import {createElement2, refresh_language, gobj_send_event, log_error} from "@yuneta/gobj-js";
 
 import {
     yui_shell_register_overlay,
@@ -34,6 +38,8 @@ import {t} from "i18next";
 const PREF_SEEN = "welcome_dismissed";
 
 let $dialog = null;         // the open dialog, if any
+let opener = null;          // the gobj that opened it, and gets its events
+let shell = null;           // the shell it is an overlay of
 let overlay = null;         // its shell overlay handle
 let on_closed = null;       // what the caller wants doing afterwards
 let on_escape = null;       // its handler on the shell's Escape stack
@@ -57,11 +63,14 @@ function welcome_dismissed()
  *  went. Two dialogs must never be stacked on a first run, and
  *  this is how the second one waits its turn.
  ***************************************************************/
-function open_about(shell_gobj, first_run, on_close)
+function open_about(gobj, shell_gobj, first_run, on_close)
 {
     if($dialog) {
+        log_error("about_dialog: already open");
         return;
     }
+    opener = gobj;
+    shell = shell_gobj;
     on_closed = on_close || null;
 
     let $card = createElement2(
@@ -90,7 +99,7 @@ function open_about(shell_gobj, first_run, on_close)
         ["div", {class: "VID_ABOUT_BACKDROP"}, [$card], {
             click: (ev) => {
                 if(ev.target === ev.currentTarget) {
-                    close_about(shell_gobj);
+                    send("close");
                 }
             }
         }]
@@ -100,10 +109,10 @@ function open_about(shell_gobj, first_run, on_close)
     $dialog = $backdrop;
 
     /*  Back button and Escape, courtesy of the shell. */
-    overlay = yui_shell_register_overlay(shell_gobj, () => close_about(shell_gobj, true));
+    overlay = yui_shell_register_overlay(shell_gobj, () => close_about(true));
     /*  The overlay buys the Back button; Escape is a stack of its own. */
-    on_escape = () => close_about(shell_gobj);
-    yui_shell_push_escape(shell_gobj, "modal", on_escape, () => close_about(shell_gobj, true));
+    on_escape = () => send("close");
+    yui_shell_push_escape(shell_gobj, "modal", on_escape, () => close_about(true));
 
     refresh_language($backdrop, t);
 
@@ -172,25 +181,37 @@ function build_footer(first_run)
         ["div", {class: "VID_ABOUT_FOOTL"}, children],
         ["button", {class: "VID_ABOUT_CLOSE button is-primary", type: "button",
                     i18n: "close", ...named("close")},
-            t("close"), {click: (ev) => close_from_button(ev)}]
+            t("close"), {click: () => send("close")}]
     ]];
 }
 
-/*  The close button has no reference to the shell; it is resolved from
-    the dialog element the button lives in. */
-let close_shell = null;
-
-function close_from_button()
+function send(act)
 {
-    close_about(close_shell);
+    if(!opener) {
+        log_error(`about_dialog: ${act} with no opener`);
+        return;
+    }
+    gobj_send_event(opener, "EV_DIALOG", {dialog: "about", act: act}, opener);
+}
+
+/*  What its controls do, run from the opener's FSM. */
+function about_action(kw)
+{
+    if(kw.act === "close") {
+        close_about(false);
+        return 0;
+    }
+    log_error(`about_dialog: unknown action: ${kw.act}`);
+    return -1;
 }
 
 
-function close_about(shell_gobj, from_history)
+function close_about(from_history)
 {
     if(!$dialog) {
-        return;
+        return;             // already gone: the Back button and a click can race
     }
+    let shell_gobj = shell;
 
     /*  Honour the checkbox on the way out, whichever way the dialog was
         closed — including the Back button. */
@@ -212,6 +233,8 @@ function close_about(shell_gobj, from_history)
         yui_shell_overlay_dismissed(shell_gobj, overlay);
     }
     overlay = null;
+    opener = null;
+    shell = null;
 
     let after = on_closed;
     on_closed = null;
@@ -221,12 +244,4 @@ function close_about(shell_gobj, from_history)
 }
 
 
-/*  The host hands us the shell once, at start up, so the close button
-    and the backdrop do not each have to carry it. */
-function about_bind_shell(shell_gobj)
-{
-    close_shell = shell_gobj;
-}
-
-
-export {open_about, close_about, welcome_dismissed, about_bind_shell};
+export {open_about, close_about, about_action, welcome_dismissed};

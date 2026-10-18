@@ -31,6 +31,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {traced, trace_emit, store_trace} from "./trace.js";
 import {STORE_STATS, idb_all, idb_put, idb_del} from "./idb.js";
 import {
     subscribe, progress, sounding, key_of, set_resume_lookup, is_sounding,
@@ -72,6 +73,7 @@ function subscribe_stats(fn)
 
 function emit()
 {
+    trace_emit("stats_store", "stats");
     for(const fn of listeners) {
         try {
             fn("stats");
@@ -203,7 +205,10 @@ function touch(key)
     if(S.timer) {
         return;
     }
-    S.timer = setTimeout(flush, WRITE_MS);
+    S.timer = setTimeout(function() {
+        store_trace("stats_store", "write timer");
+        flush();
+    }, WRITE_MS);
 }
 
 function flush()
@@ -504,8 +509,21 @@ async function load_stats()
 }
 
 
+
+/*  What the interface calls, traced (see trace.js): the store's own
+    calls to these stay untraced. */
+const __t_load_stats = traced("stats_store", "load_stats", load_stats);
+const __t_heart = traced("stats_store", "heart", heart);
+const __t_stats_reset = traced("stats_store", "stats_reset", stats_reset);
+const __t_forget_place = traced("stats_store", "forget_place", forget_place);
+const __t_clear_counts = traced("stats_store", "clear_counts", clear_counts);
+const __t_clear_places = traced("stats_store", "clear_places", clear_places);
+const __t_drop_source_stats = traced("stats_store", "drop_source_stats", drop_source_stats);
+const __t_note_ended = traced("stats_store", "note_ended", note_ended);
+const __t_flush_places = traced("stats_store", "flush_places", flush_places);
+
 export {
-    load_stats,
+    __t_load_stats as load_stats,
     subscribe_stats,
     stats_of,
     watched_fraction,
@@ -513,13 +531,13 @@ export {
     in_progress,
     ranked,
     split_key,
-    heart,
-    stats_reset,
-    forget_place,
-    clear_counts,
-    clear_places,
-    drop_source_stats,
+    __t_heart as heart,
+    __t_stats_reset as stats_reset,
+    __t_forget_place as forget_place,
+    __t_clear_counts as clear_counts,
+    __t_clear_places as clear_places,
+    __t_drop_source_stats as drop_source_stats,
     note_duration,
-    flush_places,
-    note_ended,
+    __t_flush_places as flush_places,
+    __t_note_ended as note_ended,
 };

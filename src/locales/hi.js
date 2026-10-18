@@ -290,6 +290,12 @@ const hi = {
         /*  ---- counts: every CLDR form the language has ---- */
         "n videos_one": "वीडियो",
         "n videos_other": "वीडियो",
+        "the stores": "स्टोर",
+        "trace the stores": "स्टोर ट्रेस करें: कॉल, चैनल और ब्राउज़र कॉलबैक",
+        "the stores' clock": "स्टोर की घड़ी",
+        "trace the stores' clock": "स्टोर की घड़ी ट्रेस करें, चलाते समय प्रति सेकंड चार बार",
+        "unit gb": "जीबी",
+        "unit mb": "एमबी",
         "n views_one": "बार देखा",
         "n views_other": "बार देखा",
         "n hearts_one": "दिल",

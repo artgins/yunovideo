@@ -311,16 +311,23 @@
 }
 .VID_SCANBAR .VID_BAR_FILL { background: var(--vid-accent-ink); }
 
-/*  Still walking the folder tree: no total to divide by yet. */
+/*  Still walking the folder tree: no total to divide by yet. Said by
+    a hatched bar the whole width — still, like everything in a Yuneta
+    GUI. What shows the read is alive is the clock beside it, which
+    ticks every half second (an animation would sweep on just as happily
+    over a hung read). */
 .VID_BAR_FILL.is-indeterminate {
-    width: 35%;
-    animation: vid-sweep 1.1s ease-in-out infinite;
+    width: 100%;
+    background: repeating-linear-gradient(-45deg,
+        currentColor 0 6px, transparent 6px 12px);
+    opacity: 0.55;
 }
-@keyframes vid-sweep {
-    0%   { margin-inline-start: -35%; }
-    100% { margin-inline-start: 100%; }
+.VID_SCANBAR .VID_BAR_FILL.is-indeterminate {
+    color: var(--vid-accent-ink);
+    background-color: transparent;
 }
 
+/*  A ring that says "reading", still. */
 .VID_SPINNER {
     flex: none;
     width: 13px;
@@ -328,14 +335,7 @@
     border-radius: 50%;
     border: 2px solid color-mix(in srgb, var(--vid-accent-ink) 30%, transparent);
     border-top-color: var(--vid-accent-ink);
-    animation: vid-spin 0.7s linear infinite;
-}
-@keyframes vid-spin { to { transform: rotate(360deg); } }
-
-/*  The two things that move are progress indicators, and somebody who
-    asked for less motion gets them still. */
-@media (prefers-reduced-motion: reduce) {
-    .VID_SPINNER, .VID_BAR_FILL.is-indeterminate { animation: none; }
+    border-right-color: var(--vid-accent-ink);
 }
 
 
@@ -590,6 +590,18 @@
     border-color: var(--vid-accent);
     font-weight: 600;
 }
+/*  The app's own trace levels, above gobj-ui's panel. */
+.VID_DEV_APPTRACES {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.VID_DEV_CHIP.is-on {
+    background: var(--vid-accent-soft);
+    border-color: var(--vid-accent);
+    font-weight: 600;
+}
+
 .VID_DEV_PANE {
     display: flex;
     flex-direction: column;
@@ -616,6 +628,10 @@
 /*  The value half of a "label: value" line. A separate node because the
     label is translated and the value never is — a heap size and a track
     name mean the same in every language. */
+/*  A figure and its unit are two nodes (the unit is translated), and
+    createElement2 trims text: the space between them is drawn here. */
+.VID_UNIT { margin-inline-start: 0.25em; }
+
 .VID_DEV_VAL {
     font-weight: 600;
     margin-inline-start: 0.4ch;
@@ -1466,7 +1482,9 @@
 .VID_SRCPROGRESS .VID_SPINNER {
     border-color: color-mix(in srgb, var(--vid-accent) 30%, transparent);
     border-top-color: var(--vid-accent);
+    border-right-color: var(--vid-accent);
 }
+.VID_SRCPROGRESS .VID_BAR_FILL.is-indeterminate { color: var(--vid-accent); }
 .VID_BAR {
     height: 4px;
     border-radius: 2px;

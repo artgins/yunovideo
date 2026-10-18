@@ -29,14 +29,14 @@ import {
     gclass_create, log_error,
     gobj_parent,
     gobj_read_attr, gobj_read_pointer_attr, gobj_write_attr,
-    gobj_subscribe_event, gobj_send_event,
+    gobj_subscribe_event, gobj_send_event, gobj_change_state,
     createElement2, refresh_language,
 } from "@yuneta/gobj-js";
 
 import {yui_shell_of} from "@yuneta/gobj-ui/src/c_yui_shell.js";
 
 import {
-    subscribe, find_video, find_uid, queue_add, play_temp, play_list, sounding,
+    subscribe, find_video, find_uid, queue_add, play_temp, play_list, sounding, queue_length,
 } from "./video_store.js";
 import {
     subscribe_playlists, all_playlists, resolve, entries_of, remove_playlist,
@@ -44,7 +44,8 @@ import {
 import {
     subscribe_stats, ranked, in_progress, split_key, clear_counts, clear_places, heart,
 } from "./stats_store.js";
-import {confirm_replace} from "./confirm_replace.js";
+import {open_confirm} from "./confirm_replace.js";
+import {dialog_action} from "./dialogs.js";
 import {open_card, card_action} from "./video_card.js";
 import {video_row, refresh_rows, mark_playing} from "./rows.js";
 import {subscribe_thumbs} from "./thumbs.js";
@@ -122,6 +123,7 @@ function mt_start(gobj)
 {
     let priv = gobj.priv;
     priv.asking = "";
+    gobj_change_state(gobj, "ST_IDLE");
     const send = (channel) => gobj_send_event(gobj, "EV_STORE", {channel: channel}, gobj);
     priv.unsubs = [
         subscribe_playlists(() => send("playlists")),
@@ -543,26 +545,37 @@ function ac_unfold(gobj, event, kw, src)
     deck away, so it asks — and the answer comes back as an event. */
 function ac_play_list(gobj, event, kw, src)
 {
-    let shell = yui_shell_of(gobj);
-    confirm_replace(shell).then(function(answer) {
-        gobj_send_event(gobj, "EV_REPLACE_ANSWER", {id: kw.id, answer: answer || ""}, gobj);
-    }, function(e) {
-        log_error(`${GCLASS_NAME}: the replace question failed: ${(e && e.stack) || e}`);
-    });
+    if(!queue_length()) {
+        /*  Nothing on the deck to lose: nothing to ask. */
+        return replace_answer(gobj, kw.id, "replace");
+    }
+    open_confirm(gobj, yui_shell_of(gobj), {id: kw.id});
     return 0;
 }
 
-function ac_replace_answer(gobj, event, kw, src)
+/*  A dialog this view opened answered (the replace question). */
+function ac_dialog(gobj, event, kw, src)
 {
-    let r = resolve(kw.id);
-    let pl = all_playlists().find((p) => p.id === kw.id);
+    if(kw.dialog === "confirm") {
+        return replace_answer(gobj, kw.ctx && kw.ctx.id, dialog_action(gobj, kw));
+    }
+    return dialog_action(gobj, kw);
+}
+
+function replace_answer(gobj, id, answer)
+{
+    if(!answer) {
+        return 0;                       // cancelled
+    }
+    let r = resolve(id);
+    let pl = all_playlists().find((p) => p.id === id);
     if(!pl || !r.tracks.length) {
-        log_error(`${GCLASS_NAME}: list gone or empty: ${kw.id}`);
+        log_error(`${GCLASS_NAME}: list gone or empty: ${id}`);
         return -1;
     }
-    if(kw.answer === "replace") {
+    if(answer === "replace") {
         play_list(r.tracks, pl.id, pl.name);
-    } else if(kw.answer === "append") {
+    } else if(answer === "append") {
         queue_add(r.tracks, "append");
     }
     return 0;
@@ -591,6 +604,12 @@ function ac_ask_no(gobj, event, kw, src)
 function ac_ask_yes(gobj, event, kw, src)
 {
     let what = kw.what || "";
+    if(what !== gobj.priv.asking) {
+        log_error(`${GCLASS_NAME}: answer to "${what}" while asking "${gobj.priv.asking}"`);
+        gobj.priv.asking = "";
+        render(gobj);
+        return -1;
+    }
     gobj.priv.asking = "";
     if(what === "places") {
         clear_places();
@@ -641,25 +660,35 @@ function create_gclass(gclass_name)
         return -1;
     }
 
+    /*  What the view does in every state; each state adds what only it
+        can answer. */
+    const common = [
+        ["EV_STORE",            ac_store,           null],
+        ["EV_LANGUAGE_CHANGED", ac_language_changed, null],
+        ["EV_ROUTE_CHANGED",    ac_route_changed,   null],
+        ["EV_PLAY_ROW",         ac_play_row,        null],
+        ["EV_PLAY_CTX",         ac_play_ctx,        null],
+        ["EV_ADD_CTX",          ac_add_ctx,         null],
+        ["EV_ADD_ROW",          ac_add_row,         null],
+        ["EV_HEART_ROW",        ac_heart_row,       null],
+        ["EV_UNFOLD",           ac_unfold,          null],
+        ["EV_PLAY_LIST",        ac_play_list,       null],
+        ["EV_DIALOG",           ac_dialog,          null],
+        ["EV_ADD_LIST",         ac_add_list,        null],
+        ["EV_OPEN_CARD",        ac_open_card,       null],
+        ["EV_CARD_ACTION",      ac_card_action,     null]
+    ];
     const states = [
         ["ST_IDLE", [
-            ["EV_STORE",            ac_store,           null],
-            ["EV_LANGUAGE_CHANGED", ac_language_changed, null],
-            ["EV_ROUTE_CHANGED",    ac_route_changed,   null],
-            ["EV_PLAY_ROW",         ac_play_row,        null],
-            ["EV_PLAY_CTX",         ac_play_ctx,        null],
-            ["EV_ADD_CTX",          ac_add_ctx,         null],
-            ["EV_ADD_ROW",          ac_add_row,         null],
-            ["EV_HEART_ROW",        ac_heart_row,       null],
-            ["EV_UNFOLD",           ac_unfold,          null],
-            ["EV_PLAY_LIST",        ac_play_list,       null],
-            ["EV_REPLACE_ANSWER",   ac_replace_answer,  null],
-            ["EV_ADD_LIST",         ac_add_list,        null],
-            ["EV_ASK",              ac_ask,             null],
-            ["EV_ASK_NO",           ac_ask_no,          null],
-            ["EV_ASK_YES",          ac_ask_yes,         null],
-            ["EV_OPEN_CARD",        ac_open_card,       null],
-            ["EV_CARD_ACTION",      ac_card_action,     null]
+            ...common,
+            ["EV_ASK",              ac_ask,             "ST_ASKING"]
+        ]],
+        /*  A question stands in place of its button (priv.asking says which). */
+        ["ST_ASKING", [
+            ...common,
+            ["EV_ASK",              ac_ask,             "ST_ASKING"],
+            ["EV_ASK_YES",          ac_ask_yes,         "ST_IDLE"],
+            ["EV_ASK_NO",           ac_ask_no,          "ST_IDLE"]
         ]]
     ];
 
@@ -674,7 +703,7 @@ function create_gclass(gclass_name)
         ["EV_HEART_ROW",        0],
         ["EV_UNFOLD",           0],
         ["EV_PLAY_LIST",        0],
-        ["EV_REPLACE_ANSWER",   0],
+        ["EV_DIALOG",           0],
         ["EV_ADD_LIST",         0],
         ["EV_ASK",              0],
         ["EV_ASK_NO",           0],

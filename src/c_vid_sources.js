@@ -30,7 +30,7 @@ import {
     gclass_create, log_error,
     gobj_parent,
     gobj_read_attr, gobj_read_pointer_attr, gobj_write_attr,
-    gobj_subscribe_event, gobj_send_event,
+    gobj_subscribe_event, gobj_send_event, gobj_change_state,
     createElement2, refresh_language,
 } from "@yuneta/gobj-js";
 
@@ -114,6 +114,7 @@ function mt_start(gobj)
 {
     let priv = gobj.priv;
     priv.confirming = "";
+    gobj_change_state(gobj, "ST_IDLE");
     const send = (channel) => gobj_send_event(gobj, "EV_STORE", {channel: channel}, gobj);
     priv.unsubs = [
         subscribe_sources(() => send("sources")),
@@ -528,6 +529,12 @@ function ac_remove_ask(gobj, event, kw, src)
 
 function ac_remove_yes(gobj, event, kw, src)
 {
+    if(kw.source_id !== gobj.priv.confirming) {
+        log_error(`${GCLASS_NAME}: remove of ${kw.source_id} while confirming ${gobj.priv.confirming}`);
+        gobj.priv.confirming = "";
+        render(gobj);
+        return -1;
+    }
     gobj.priv.confirming = "";
     remove_source(kw.source_id);
     return 0;
@@ -603,24 +610,34 @@ function create_gclass(gclass_name)
         return -1;
     }
 
+    /*  What the view does in every state; each state adds what only it
+        can answer. */
+    const common = [
+        ["EV_STORE",            ac_store,           null],
+        ["EV_LANGUAGE_CHANGED", ac_language_changed, null],
+        ["EV_ADD_DIR",          ac_add_dir,         null],
+        ["EV_ADD_FILES",        ac_add_files,       null],
+        ["EV_ACCEPT_NOTICE",    ac_accept_notice,   null],
+        ["EV_DISMISS_NOTICE",   ac_dismiss_notice,  null],
+        ["EV_LOOK_INSIDE",      ac_look_inside,     null],
+        ["EV_AUTHORIZE",        ac_authorize,       null],
+        ["EV_RESCAN",           ac_rescan,          null],
+        ["EV_ADD_SOURCE",       ac_add_source,      null],
+        ["EV_DIAG_TOGGLE",      ac_diag_toggle,     null],
+        ["EV_COPY_DIAG",        ac_copy_diag,       null],
+        ["EV_DIAG_READY",       ac_diag_ready,      null]
+    ];
     const states = [
         ["ST_IDLE", [
-            ["EV_STORE",            ac_store,           null],
-            ["EV_LANGUAGE_CHANGED", ac_language_changed, null],
-            ["EV_ADD_DIR",          ac_add_dir,         null],
-            ["EV_ADD_FILES",        ac_add_files,       null],
-            ["EV_ACCEPT_NOTICE",    ac_accept_notice,   null],
-            ["EV_DISMISS_NOTICE",   ac_dismiss_notice,  null],
-            ["EV_LOOK_INSIDE",      ac_look_inside,     null],
-            ["EV_AUTHORIZE",        ac_authorize,       null],
-            ["EV_RESCAN",           ac_rescan,          null],
-            ["EV_ADD_SOURCE",       ac_add_source,      null],
-            ["EV_REMOVE_ASK",       ac_remove_ask,      null],
-            ["EV_REMOVE_YES",       ac_remove_yes,      null],
-            ["EV_REMOVE_NO",        ac_remove_no,       null],
-            ["EV_DIAG_TOGGLE",      ac_diag_toggle,     null],
-            ["EV_COPY_DIAG",        ac_copy_diag,       null],
-            ["EV_DIAG_READY",       ac_diag_ready,      null]
+            ...common,
+            ["EV_REMOVE_ASK",       ac_remove_ask,      "ST_CONFIRMING"]
+        ]],
+        /*  "Remove this source?" stands on one row (priv.confirming says which). */
+        ["ST_CONFIRMING", [
+            ...common,
+            ["EV_REMOVE_ASK",       ac_remove_ask,      "ST_CONFIRMING"],
+            ["EV_REMOVE_YES",       ac_remove_yes,      "ST_IDLE"],
+            ["EV_REMOVE_NO",        ac_remove_no,       "ST_IDLE"]
         ]]
     ];
 

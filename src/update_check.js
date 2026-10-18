@@ -12,11 +12,12 @@
  *      small file, and the two are compared: on start, and whenever the
  *      tab is brought back to the front (throttled). A difference is
  *      reported, never acted on — reloading is the user's call, since
- *      they may be in the middle of listening to something.
+ *      they may be in the middle of watching something.
  *
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {traced, trace_emit, store_trace} from "./trace.js";
 
 const CHECK_EVERY = 60 * 1000;      // at most once a minute
 
@@ -38,6 +39,7 @@ function subscribe_update(fn)
 
 function emit()
 {
+    trace_emit("update_check", "update");
     for(const fn of listeners) {
         try {
             fn("update");
@@ -119,20 +121,28 @@ function start_update_watch()
     /*  Coming back to the tab is the moment a stale build matters and
         the moment the user is about to act on it. */
     document.addEventListener("visibilitychange", function() {
+        store_trace("update_check", `visibility ${document.visibilityState}`);
         if(document.visibilityState === "visible") {
             check_for_update(false);
         }
     });
     window.addEventListener("focus", function() {
+        store_trace("update_check", "focus");
         check_for_update(false);
     });
 }
 
 
+
+/*  What the interface calls, traced (see trace.js): the store's own
+    calls to these stay untraced. */
+const __t_start_update_watch = traced("update_check", "start_update_watch", start_update_watch);
+const __t_check_for_update = traced("update_check", "check_for_update", check_for_update);
+
 export {
     subscribe_update,
-    start_update_watch,
-    check_for_update,
+    __t_start_update_watch as start_update_watch,
+    __t_check_for_update as check_for_update,
     is_stale,
     latest_version,
     running_version,

@@ -22,6 +22,7 @@
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
  ***********************************************************************/
+import {store_trace} from "./trace.js";
 
 function start_offline()
 {
@@ -40,11 +41,15 @@ function start_offline()
         the deploy root, where sw.js sits. */
     navigator.serviceWorker.register("./sw.js", {scope: "./"}).then(
         function(reg) {
+            store_trace("offline", "service worker registered");
             /*  Ask once whether a newer worker is deployed. The browser
                 does this on navigation anyway; doing it here too means a
                 tab left open for days still picks up a deploy. */
             if(typeof reg.update === "function") {
-                setTimeout(function() { reg.update(); }, 30 * 1000);
+                setTimeout(function() {
+                    store_trace("offline", "asking for a newer worker");
+                    reg.update();
+                }, 30 * 1000);
             }
         },
         function(err) {

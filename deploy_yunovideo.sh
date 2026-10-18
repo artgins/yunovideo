@@ -22,7 +22,9 @@ fi
 #   Backup
 #
 BACKUP_DIR="/yuneta/gui/backups/$SITE/$(date +%Y%m%d_%H%M%S)"
-ssh "yuneta@$HOST" "mkdir -p '$BACKUP_DIR' && cp -a '/yuneta/gui/$SITE/.' '$BACKUP_DIR/'"
+#   A first deploy to a host has nothing to back up: without the test, the
+#   cp of a missing directory would stop it there (set -e).
+ssh "yuneta@$HOST" "mkdir -p '$BACKUP_DIR' && if [ -d '/yuneta/gui/$SITE' ]; then cp -a '/yuneta/gui/$SITE/.' '$BACKUP_DIR/'; fi"
 
 #
 #   Upload

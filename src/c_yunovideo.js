@@ -67,9 +67,11 @@ import {pref_get} from "./idb.js";
 import {diag_watch} from "./diag.js";
 import {toggle_fullscreen, toggle_pip} from "./screen.js";
 import {P, svg, named, rename, set_text, clear} from "./ui.js";
+import {STORE_TRACE_LEVELS, set_store_tracer} from "./trace.js";
 
 import {switch_locale, current_locale} from "./locales/locales.js";
-import {open_about, welcome_dismissed, about_bind_shell} from "./about_dialog.js";
+import {open_about, welcome_dismissed} from "./about_dialog.js";
+import {dialog_action} from "./dialogs.js";
 import {open_developer} from "./dev_dialog.js";
 import {start_update_watch} from "./update_check.js";
 import {start_install_watch} from "./install_prompt.js";
@@ -142,6 +144,9 @@ function mt_create(gobj)
 {
     let priv = gobj.priv;
 
+    /*  The stores trace under this gclass's levels (see trace.js). */
+    set_store_tracer(gobj);
+
     let $root = createElement2(["div", {class: "VID_ROOT"}, []]);
     document.body.appendChild($root);
     priv.$root = $root;
@@ -167,7 +172,6 @@ function mt_create(gobj)
     gobj_subscribe_event(shell, "EV_ROUTE_CHANGED", {}, gobj);
 
     yui_shell_set_translator(shell, t);
-    about_bind_shell(shell);
 }
 
 /***************************************************************
@@ -306,9 +310,9 @@ async function boot(gobj)
 
     let dismissed = await welcome_dismissed();
     if(!dismissed) {
-        open_about(priv.shell, true, () => offer_install_when_due(priv.shell));
+        open_about(gobj, priv.shell, true, () => offer_install_when_due(gobj, priv.shell));
     } else {
-        offer_install_when_due(priv.shell);
+        offer_install_when_due(gobj, priv.shell);
     }
 }
 
@@ -948,7 +952,7 @@ function ac_set_locale(gobj, event, kw, src)
 
 function ac_open_about(gobj, event, kw, src)
 {
-    open_about(gobj.priv.shell, false);
+    open_about(gobj, gobj.priv.shell, false);
     return 0;
 }
 
@@ -960,8 +964,14 @@ function ac_open_sitemap(gobj, event, kw, src)
 
 function ac_open_developer(gobj, event, kw, src)
 {
-    open_developer(gobj.priv.shell);
+    open_developer(gobj, gobj.priv.shell);
     return 0;
+}
+
+/*  A dialog this gobj opened (welcome, install, developer) speaks. */
+function ac_dialog(gobj, event, kw, src)
+{
+    return dialog_action(gobj, kw);
 }
 
 function ac_route_changed(gobj, event, kw, src)
@@ -1183,6 +1193,7 @@ function create_gclass(gclass_name)
             ["EV_OPEN_ABOUT",       ac_open_about,      null],
             ["EV_OPEN_SITEMAP",     ac_open_sitemap,    null],
             ["EV_OPEN_DEVELOPER",   ac_open_developer,  null],
+            ["EV_DIALOG",           ac_dialog,          null],
             ["EV_ROUTE_CHANGED",    ac_route_changed,   null],
             ["EV_GO_TO_DECK",       ac_go_to_deck,      null],
             ["EV_TOGGLE_PLAY",      ac_toggle_play,     null],
@@ -1212,6 +1223,7 @@ function create_gclass(gclass_name)
         ["EV_OPEN_ABOUT",       0],
         ["EV_OPEN_SITEMAP",     0],
         ["EV_OPEN_DEVELOPER",   0],
+        ["EV_DIALOG",           0],
         ["EV_ROUTE_CHANGED",    0],
         ["EV_GO_TO_DECK",       0],
         ["EV_TOGGLE_PLAY",      0],
@@ -1242,7 +1254,7 @@ function create_gclass(gclass_name)
         PRIVATE_DATA,
         0,
         0,
-        0,
+        STORE_TRACE_LEVELS,
         0
     );
     if(!__gclass__) {

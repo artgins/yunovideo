@@ -287,6 +287,12 @@ const zh = {
 
         /*  ---- counts: every CLDR form the language has ---- */
         "n videos_other": "个视频",
+        "the stores": "存储",
+        "trace the stores": "跟踪存储：调用、通道和浏览器回调",
+        "the stores' clock": "存储的时钟",
+        "trace the stores' clock": "跟踪存储的时钟，播放时每秒四次",
+        "unit gb": "GB",
+        "unit mb": "MB",
         "n views_other": "次观看",
         "n hearts_other": "喜欢",
         "n episodes_other": "集",

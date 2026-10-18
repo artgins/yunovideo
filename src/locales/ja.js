@@ -287,6 +287,12 @@ const ja = {
 
         /*  ---- counts: every CLDR form the language has ---- */
         "n videos_other": "本",
+        "the stores": "ストア",
+        "trace the stores": "ストアをトレース：呼び出し、チャネル、ブラウザのコールバック",
+        "the stores' clock": "ストアの時計",
+        "trace the stores' clock": "ストアの時計をトレース（再生中は毎秒4回）",
+        "unit gb": "GB",
+        "unit mb": "MB",
         "n views_other": "回視聴",
         "n hearts_other": "ハート",
         "n episodes_other": "話",

@@ -4,6 +4,37 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.4 — 2026-10-18
+
+- **What happens outside the machine is no blind spot.** The stores are plain
+  modules close to the browser, and some of what they do never crosses an
+  automaton: the calls the gobjs make to them, the channels they emit, the
+  browser callbacks they answer directly (the video element, a write timer,
+  the thumbnails' observer, the file picker, the black box). All of it is
+  now a line of the trace under the root's user level `stores` (the clock,
+  four a second, under `stores-time`), switched from the developer sheet's
+  Traces tab and kept across launches by the yuno (`set-gclass-trace
+  gclass_name=C_YUNOVIDEO level=stores`). Off, a call costs a bit test.
+- **The dialogs answer through the machine**: welcome/help, install, the
+  replace question and the developer sheet send `EV_DIALOG` to the gobj that
+  opened them, and its action answers (the replace question no longer
+  resolves a promise from its button). Late answers — the traces panel
+  loaded, the clipboard done, the browser's install offer — are events too.
+- **The questions are states**: "Empty the queue?" and the list name being
+  typed (player), "Forget every…?" / "Delete this list?" (lists) and "Remove
+  this source?" (sources). Their yes and no exist only in that state, so one
+  arriving at any other moment fails loudly.
+- "Take a heart back" has its own icon, a broken heart.
+- Nothing animates: the scan ring is still, and a read with no total yet is
+  a hatched bar; the ticking clock beside it says the read is alive.
+- Sizes say their unit in the language in force ("Go", "ГБ").
+- The diagnostics' "not video" line counts what a pick left out again (it
+  always said "none"); the file picker offers every extension the app reads
+  (.ts, .mts, .m2ts, .wmv, .flv…); the service worker precaches from the
+  server, never from the HTTP cache; a first deploy to a new host no longer
+  stops at the backup.
+- Tests: `dialogs` and `trace` (new).
+
 ## 1.0.3 — 2026-10-18
 
 - **A rescan leaves the queue as it was.** It used to take that source's
