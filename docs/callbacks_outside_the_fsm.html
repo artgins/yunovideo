@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Callbacks fuera del autómata</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (~68ch) for prose; data tables and the diagram may run wider in their own scrollers. */
+:root {
+    --paper:   #F5F7F8;
+    --surface: #FFFFFF;
+    --ink:     #17202B;
+    --muted:   #566273;
+    --rule:    #D9DFE5;
+    --accent:  #1C6A86;
+    --in:      #2E7D5B;   /* enters the automaton */
+    --out:     #B4651E;   /* acts directly */
+    --await:   #8A6FB0;   /* await resumptions */
+    --code-bg: #EDF1F4;
+    --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --f-body:    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono:    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --paper: #10161D; --surface: #17202A; --ink: #E4E9EE; --muted: #9AA7B5;
+        --rule: #2B3743; --accent: #5FB3D2; --in: #5CC193; --out: #E59A55;
+        --await: #B49ADB; --code-bg: #1D2834; color-scheme: dark;
+    }
+}
+:root[data-theme="dark"] {
+    --paper: #10161D; --surface: #17202A; --ink: #E4E9EE; --muted: #9AA7B5;
+    --rule: #2B3743; --accent: #5FB3D2; --in: #5CC193; --out: #E59A55;
+    --await: #B49ADB; --code-bg: #1D2834; color-scheme: dark;
+}
+
+body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 16px/1.6 var(--f-body);
+}
+.wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 40px 72px;
+    display: grid;
+    gap: 56px;
+}
+.prose { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 2.9rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 600; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0; }
+section { display: grid; gap: 18px; }
+.eyebrow {
+    font: 500 0.78rem/1 var(--f-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+.lede { font-size: 1.12rem; color: var(--muted); }
+code, .mono { font-family: var(--f-mono); font-size: 0.9em; }
+code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); font-size: 0.9rem; }
+
+/* The two apps side by side: the headline numbers */
+.apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.app {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+.app h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.app h3 span { font: 400 0.85rem var(--f-mono); color: var(--muted); }
+.bar { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: var(--rule); }
+.bar i { display: block; height: 100%; }
+.bar .in { background: var(--in); }
+.bar .out { background: var(--out); }
+.bar .aw { background: var(--await); }
+.nums { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 0.95rem; }
+.nums b { font: 500 1.05rem var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-inline-end: 6px; vertical-align: baseline; }
+.app .note { font-size: 0.9rem; color: var(--muted); }
+
+/* Tables */
+.scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+th { font: 600 0.78rem var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+td.f { font-family: var(--f-mono); white-space: nowrap; }
+tr.sum td { font-weight: 600; background: var(--code-bg); }
+.tag { font: 500 0.75rem var(--f-mono); padding: 2px 7px; border-radius: 999px; white-space: nowrap; border: 1px solid currentColor; }
+.tag.keep { color: var(--in); }
+.tag.move { color: var(--out); }
+.tag.plumb { color: var(--muted); }
+
+/* Causes: a real ranked list */
+.causes { display: grid; gap: 14px; counter-reset: c; padding: 0; margin: 0; list-style: none; }
+.causes li { display: grid; grid-template-columns: 2.2rem 1fr; gap: 4px 12px; }
+.causes li::before {
+    counter-increment: c; content: counter(c);
+    font: 600 1.3rem/1.4 var(--f-display); color: var(--accent);
+    grid-row: span 2;
+}
+.causes b { font-family: var(--f-display); font-weight: 600; font-size: 1.08rem; }
+.causes p { grid-column: 2; color: var(--ink); }
+
+/* Comparison C vs browser */
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.lane { border-top: 3px solid var(--accent); padding-top: 12px; display: grid; gap: 10px; min-width: 0; }
+.lane.web { border-top-color: var(--out); }
+.flow { display: grid; gap: 6px; font: 0.88rem/1.45 var(--f-mono); }
+.flow div { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 7px 10px; }
+.flow .arrow { background: none; border: none; padding: 0 10px; color: var(--muted); }
+.flow .hot { border-color: var(--out); }
+
+/* Proposal states */
+pre.states {
+    margin: 0; padding: 16px; overflow-x: auto;
+    background: var(--code-bg); border-radius: 8px;
+    font: 0.85rem/1.55 var(--f-mono); color: var(--ink);
+}
+.phases { display: grid; gap: 12px; }
+.phase { display: grid; grid-template-columns: 5.5rem 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid var(--rule); }
+.phase:first-child { border-top: none; }
+.phase .k { font: 600 0.82rem var(--f-mono); color: var(--accent); padding-top: 3px; }
+.phase div { min-width: 0; display: grid; gap: 6px; }
+
+.decisions { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
+.decisions li { background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 6px; padding: 12px 16px; }
+.decisions li b { display: block; margin-bottom: 2px; }
+.small { font-size: 0.88rem; color: var(--muted); }
+ul.plain { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
+
+@media (max-width: 520px) {
+    .phase { grid-template-columns: 1fr; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="prose" style="display:grid;gap:14px">
+    <span class="eyebrow">yunovídeo · yunomúsica · auditoría de código</span>
+    <h1>Callbacks fuera del autómata</h1>
+    <p class="lede">Qué callbacks del navegador no entran por una máquina de estados en las dos SPAs, dónde están, por qué son tantos y qué haría falta para que todos entren.</p>
+    <div class="meta">
+        <span>18 de octubre de 2026</span>
+        <span>yunovideo 1.0.6 · yunomusica 2.37.0</span>
+        <span>Medido con acorn sobre <code>src/*.js</code></span>
+    </div>
+</header>
+
+<section>
+    <span class="eyebrow">Las cifras</span>
+    <h2>Lo que entra y lo que actúa directamente</h2>
+    <p class="prose">Se cuentan todos los puntos donde el navegador llama a código de la app: listeners, temporizadores, observers, continuaciones de promesas, propiedades <code>on*</code>, eventos de <code>createElement2</code>, suscripciones a stores, MediaSession. Un callback <em>entra</em> si su cuerpo llama a <code>gobj_send_event</code> (directamente o a través de un ayudante local que lo hace). Aparte van las reanudaciones de <code>await</code>: cada una es una operación del sistema que termina y continúa la lógica en línea.</p>
+    <div class="apps">
+        <article class="app">
+            <h3>yunovídeo <span>1.0.5</span></h3>
+            <div class="bar" role="img" aria-label="94 entran, 68 directos, 79 await">
+                <i class="in" style="width:39%"></i><i class="out" style="width:28%"></i><i class="aw" style="width:33%"></i>
+            </div>
+            <div class="nums">
+                <span><i class="sw" style="background:var(--in)"></i>Entran por el autómata</span><b>94</b>
+                <span><i class="sw" style="background:var(--out)"></i>Actúan directamente</span><b>68</b>
+                <span><i class="sw" style="background:var(--await)"></i>Reanudaciones de <code>await</code></span><b>79</b>
+                <span>Eventos del <code>&lt;video&gt;</code> (vía <code>on()</code>)</span><b>9</b>
+            </div>
+            <p class="note">La interfaz entra entera: 51 de 52 eventos de DOM y 20 de 22 avisos de stores. Lo directo está en los stores.</p>
+        </article>
+        <article class="app">
+            <h3>yunomúsica <span>2.37.0</span></h3>
+            <div class="bar" role="img" aria-label="0 entran, 235 directos, 103 await">
+                <i class="out" style="width:70%"></i><i class="aw" style="width:30%"></i>
+            </div>
+            <div class="nums">
+                <span><i class="sw" style="background:var(--in)"></i>Entran por el autómata</span><b>0</b>
+                <span><i class="sw" style="background:var(--out)"></i>Actúan directamente</span><b>235</b>
+                <span><i class="sw" style="background:var(--await)"></i>Reanudaciones de <code>await</code></span><b>103</b>
+                <span>Eventos del <code>&lt;audio&gt;</code> (vía <code>on()</code>)</span><b>13</b>
+            </div>
+            <p class="note">Sus gclass tienen FSM de uno o dos eventos (idioma, ruta). Los autómatas son contenedores de DOM; la ejecución no pasa por ellos.</p>
+        </article>
+    </div>
+
+    <div class="scroll">
+        <table>
+            <thead><tr><th>Tipo de callback</th><th>yunovídeo: entran / total</th><th>yunomúsica: entran / total</th></tr></thead>
+            <tbody>
+                <tr><td>Eventos de DOM (<code>createElement2</code>)</td><td class="n">51 / 52</td><td class="n">0 / 107</td></tr>
+                <tr><td>Listeners y <code>on*</code> (window, document, IndexedDB, MediaSession)</td><td class="n">12 / 42</td><td class="n">0 / 45</td></tr>
+                <tr><td>Temporizadores</td><td class="n">4 / 14</td><td class="n">0 / 25</td></tr>
+                <tr><td>Observers (Intersection, Resize)</td><td class="n">0 / 2</td><td class="n">0 / 3</td></tr>
+                <tr><td><code>requestAnimationFrame</code></td><td class="n">—</td><td class="n">0 / 1</td></tr>
+                <tr><td>Continuaciones de promesas (<code>then</code>, <code>catch</code>)</td><td class="n">7 / 30</td><td class="n">0 / 38</td></tr>
+                <tr><td>Suscripciones a stores</td><td class="n">20 / 22</td><td class="n">0 / 16</td></tr>
+                <tr class="sum"><td>Total</td><td class="n">94 / 162</td><td class="n">0 / 235</td></tr>
+                <tr><td>Reanudaciones de <code>await</code> (aparte)</td><td class="n">79</td><td class="n">103</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <span class="eyebrow">Dónde están</span>
+    <h2>yunovídeo: los 68 directos, por módulo</h2>
+    <p class="prose">La columna de la derecha dice qué haría la modificación con cada grupo: <span class="tag move">entra</span> pasa a ser evento, <span class="tag plumb">fontanería</span> se queda como capa de frontera que entrega eventos hacia arriba, <span class="tag keep">excepción</span> se queda fuera a propósito.</p>
+    <div class="scroll">
+        <table>
+            <thead><tr><th>Módulo</th><th>Directos</th><th><code>await</code></th><th>Qué son</th><th>Destino</th></tr></thead>
+            <tbody>
+                <tr><td class="f">idb.js</td><td class="n">19</td><td class="n">—</td><td>Callbacks de petición y transacción de IndexedDB, y las promesas que los envuelven.</td><td><span class="tag plumb">fontanería</span></td></tr>
+                <tr><td class="f">diag.js</td><td class="n">10</td><td class="n">—</td><td>La caja negra: latido, muestras de memoria, <code>freeze</code>, <code>pagehide</code>, errores globales.</td><td><span class="tag keep">excepción</span></td></tr>
+                <tr><td class="f">sources_store.js</td><td class="n">8</td><td class="n">48</td><td>Selector de ficheros, cola de escaneos, permiso persistente, recorrido de carpetas.</td><td><span class="tag move">entra</span></td></tr>
+                <tr><td class="f">video_store.js</td><td class="n">5</td><td class="n">10</td><td>Ayudante <code>on()</code> del elemento (9 eventos, ya encauzados a <code>EV_MEDIA</code>), MediaSession, cesiones del ingest, revocación de URLs.</td><td><span class="tag move">entra</span></td></tr>
+                <tr><td class="f">thumbs.js</td><td class="n">5</td><td class="n">6</td><td>IntersectionObserver, lectura de un fotograma (eventos y tiempo límite), aviso de "se vio reproducirse".</td><td><span class="tag move">entra</span></td></tr>
+                <tr><td class="f">offline.js · main.js · screen.js</td><td class="n">8</td><td class="n">—</td><td>Registro del service worker, carga del panel de trazas, promesas de pantalla completa y PiP.</td><td><span class="tag move">entra</span></td></tr>
+                <tr><td class="f">update_check.js · install_prompt.js</td><td class="n">4</td><td class="n">3</td><td><code>visibilitychange</code>, <code>focus</code>, <code>beforeinstallprompt</code>, <code>appinstalled</code>.</td><td><span class="tag move">entra</span></td></tr>
+                <tr><td class="f">stats_store.js</td><td class="n">2</td><td class="n">1</td><td>Escritura agrupada (temporizador) y su escucha del reloj del store de vídeo.</td><td><span class="tag move">entra</span></td></tr>
+                <tr><td class="f">c_vid_deck · c_yunovideo · c_vid_sources</td><td class="n">6</td><td class="n">6</td><td>Arrastre del scrub, ResizeObserver que mide las tiras, carrera de 1,5 s antes de recargar, portapapeles.</td><td><span class="tag plumb">fontanería</span></td></tr>
+                <tr><td class="f">playlists_store · install_dialog</td><td class="n">0</td><td class="n">5</td><td>Lecturas y escrituras de listas en IndexedDB; la pregunta "¿ya se preguntó?".</td><td><span class="tag move">entra</span></td></tr>
+                <tr><td class="f">rows.js</td><td class="n">1</td><td class="n">—</td><td>Falso positivo: el manejador lo construye quien llama, con un evento.</td><td>—</td></tr>
+                <tr class="sum"><td>Total</td><td class="n">68</td><td class="n">79</td><td colspan="2"></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>yunomúsica: los 235 directos, por capa</h2>
+    <div class="scroll">
+        <table>
+            <thead><tr><th>Capa</th><th>Módulos</th><th>Directos</th><th><code>await</code></th></tr></thead>
+            <tbody>
+                <tr><td>Interfaz</td><td class="f">c_mus_deck 40 · c_mus_view 26 · c_mus_sources 23 · c_musica 22 · c_mus_lists 16 · dev_dialog 10 · track_card 5 · confirm 4 · install 4 · about 2</td><td class="n">152</td><td class="n">12</td></tr>
+                <tr><td>Stores</td><td class="f">music_store 17 · sources_store 8 · covers_online 6 · stats 2 · update 2 · install_prompt 2 · playlists 0</td><td class="n">37</td><td class="n">91</td></tr>
+                <tr><td>Drivers y frontera</td><td class="f">idb 19 · diag 10 · visualizer 7 · analyser 4 · offline 3 · main 3</td><td class="n">46</td><td class="n">0</td></tr>
+                <tr class="sum"><td>Total</td><td></td><td class="n">235</td><td class="n">103</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="prose small">Fuera de la tabla, los 13 eventos de los dos elementos <code>&lt;audio&gt;</code> (el del deck y el de la lista temporal), que el contador ve como un solo <code>addEventListener</code> dentro del ayudante <code>on()</code>.</p>
+</section>
+
+<section class="prose">
+    <span class="eyebrow">Por qué</span>
+    <h2>Por qué son tantos</h2>
+    <ol class="causes">
+        <li><b>Los stores no son gobjs.</b>
+            <p>El estado y la lógica de las dos apps (biblioteca, cola, lista temporal, posiciones, escaneos, miniaturas, portadas) viven en módulos con un objeto <code>S</code> global. Esos módulos son los dueños de los objetos del sistema: el elemento multimedia, IndexedDB, el selector de ficheros, los observers, los temporizadores. Los callbacks caen dentro de ellos y allí no hay autómata al que enviar nada. En yunomúsica, además, las vistas actúan en sus propios callbacks de DOM y de store.</p></li>
+        <li><b><code>async/await</code> esconde las terminaciones.</b>
+            <p>Es el motivo de fondo, y el que hace profunda la modificación. Cada <code>await</code> es una operación del sistema que termina: leer un fichero, una petición a IndexedDB, una entrada de directorio. <code>scan_now</code> atraviesa decenas de esas terminaciones en una sola función, y el estilo de corrutina las oculta por construcción. Yuneta no tiene <code>await</code>: en C cada terminación llega como un evento y el flujo es una secuencia de estados. No basta con envolver callbacks; cada flujo asíncrono tiene que reescribirse como estados y eventos.</p></li>
+        <li><b>La herencia.</b>
+            <p>yunovídeo copió los stores de yunomúsica casi línea a línea: <code>sources_store</code> tiene 1376 líneas frente a 1373, y <code>idb</code>, <code>diag</code> y <code>update_check</code> son idénticos. Al portarla se convirtieron las vistas a la máquina de estados y se dejaron los stores como estaban.</p></li>
+        <li><b>Una parte es frontera legítima.</b>
+            <p><code>idb.js</code> hace de driver de IndexedDB y <code>diag.js</code> es la caja negra, que tiene que seguir escribiendo cuando todo lo demás falla. El visualizador de yunomúsica dibuja en cada fotograma. Estos se quedarían como fontanería o excepción documentada; el driver, entregando su resultado como evento al gobj que lo pidió en vez de una promesa a una función.</p></li>
+    </ol>
+</section>
+
+<section>
+    <span class="eyebrow">La comparación con C</span>
+    <h2>El equivalente de io_uring</h2>
+    <p class="prose">Los callbacks del navegador son las terminaciones del sistema, lo mismo que las completions de io_uring. La diferencia es quién las ve y qué pasa antes de la primera línea de lógica.</p>
+    <div class="compare">
+        <div class="lane">
+            <h3>Un yuno en C</h3>
+            <div class="flow">
+                <div>io_uring: terminación (fd legible, timer, señal)</div>
+                <div class="arrow">↓</div>
+                <div><code>yev_loop</code>: el único que la ve</div>
+                <div class="arrow">↓ la convierte en evento</div>
+                <div><code>gobj_send_event(gobj, EV_RX_DATA, kw)</code></div>
+                <div class="arrow">↓</div>
+                <div>Acción de la FSM, registrada en la traza <code>machine</code></div>
+            </div>
+        </div>
+        <div class="lane web">
+            <h3>Los stores de las dos SPAs</h3>
+            <div class="flow">
+                <div>Navegador: <code>ended</code>, <code>onsuccess</code>, <code>setTimeout</code>, una promesa resuelta</div>
+                <div class="arrow">↓ cae en uno de ~20 módulos</div>
+                <div class="hot">Callback o reanudación de <code>await</code></div>
+                <div class="arrow">↓ ejecuta lógica en el sitio</div>
+                <div class="hot">Cambia <code>S</code>, toca el DOM, lanza otra operación</div>
+                <div class="arrow">↓ a veces, al final</div>
+                <div><code>emit(channel)</code> → <code>EV_STORE</code> en la vista</div>
+            </div>
+        </div>
+    </div>
+    <p class="prose">Las trazas añadidas hoy (<code>stores</code>, <code>stores-time</code> y, en yunomúsica, los gestos del usuario) hacen visible el carril de la derecha. No lo meten en el autómata.</p>
+</section>
+
+<section>
+    <span class="eyebrow">La propuesta</span>
+    <h2>La modificación profunda</h2>
+    <div class="prose" style="display:grid;gap:14px">
+        <p>Tres piezas, las mismas en las dos apps:</p>
+        <ul class="plain">
+            <li><b>Los stores pasan a ser gobjs de servicio</b>, cada uno con los estados de sus flujos. Las vistas les envían eventos y se suscriben a lo que publican, en lugar de llamar a funciones y escuchar <code>subscribe()</code>.</li>
+            <li><b>Un adaptador fino por cada facilidad del sistema</b>, el equivalente de <code>yev_loop</code>: el elemento multimedia, IndexedDB, el selector de ficheros, los observers. Solo traducen la terminación a un evento para el gobj que la pidió. Los temporizadores pasan a <code>C_TIMER</code>, que gobj-js ya tiene.</li>
+            <li><b>Cada cadena de <code>await</code> se reescribe como una secuencia de estados.</b></li>
+        </ul>
+        <p>Por ejemplo, el escaneo de una carpeta, hoy una sola función asíncrona con 48 <code>await</code> en su módulo:</p>
+    </div>
+<pre class="states">C_SOURCES
+  ST_IDLE         EV_ADD_DIR        → abre el selector              → ST_PICKING
+  ST_PICKING      EV_PICKED         → guarda el handle, encola      → ST_WALKING
+                  EV_PICK_CANCELLED                                 → ST_IDLE
+  ST_WALKING      EV_DIR_ENTRIES    → acumula ficheros, pide más
+                  EV_WALK_DONE      → filtra, empareja subtítulos   → ST_INGESTING
+                  EV_STOP_SCAN      → conserva lo leído             → ST_PERSISTING
+  ST_INGESTING    EV_INGEST_STEP    → un lote al catálogo, publica EV_PROGRESS
+                  EV_INGEST_DONE    → relink de la cola             → ST_PERSISTING
+  ST_PERSISTING   EV_IDB_DONE       → publica EV_SOURCE_READY; si hay otro en cola → ST_WALKING, si no → ST_IDLE
+                  EV_IDB_FAILED     → log, la fuente queda "no se pudo guardar" → ST_IDLE</pre>
+
+    <div class="phases">
+        <div class="phase"><span class="k">Fase 1</span><div><b>yunovídeo, stores.</b><p>Unas 5.500 líneas: <code>video_store</code> partido en catálogo + reproductor (con el elemento dentro), <code>sources_store</code>, <code>stats_store</code>, <code>thumbs</code>, <code>playlists</code>, y el adaptador de IndexedDB. Las vistas ya están en la máquina de estados; solo cambian de llamar funciones a enviar eventos.</p></div></div>
+        <div class="phase"><span class="k">Fase 2</span><div><b>yunomúsica, vistas.</b><p>Los 152 callbacks de interfaz pasan a eventos y acciones, como se hizo en yunovídeo. Es mecánico y lo cubren sus 36 tests.</p></div></div>
+        <div class="phase"><span class="k">Fase 3</span><div><b>yunomúsica, stores.</b><p>Lo compartido con yunovídeo (fuentes, IndexedDB, listas, avisos de versión e instalación) ya estará hecho en la fase 1. Queda lo propio: <code>music_store</code> con sus dos elementos de audio, las portadas en línea y el analizador.</p></div></div>
+    </div>
+    <p class="prose small">Lo que lo hace abordable son los tests de comportamiento que ya existen: 12 en yunovídeo y 36 en yunomúsica, contra el bundle real en un navegador. Con la modificación, la traza <code>machine</code> pasaría a contar toda la ejecución y las trazas de stores quedarían para la fontanería.</p>
+</section>
+
+<section class="prose">
+    <span class="eyebrow">Para decidir</span>
+    <h2>Lo que queda en tus manos</h2>
+    <ul class="decisions">
+        <li><b>Si se hace, y en qué orden.</b> La recomendación es la de arriba: primero yunovídeo, porque tiene las vistas hechas y el trabajo es solo de stores.</li>
+        <li><b>Si el código compartido pasa a ser un solo paquete.</b> Fuentes, IndexedDB, caja negra, listas, avisos de versión e instalación están duplicados en las dos apps. Convertirlos en gobjs una sola vez y compartirlos ahorra la fase 3 casi entera, pero añade un paquete que mantener.</li>
+        <li><b>Qué se queda fuera a propósito.</b> La propuesta deja fuera la caja negra (tiene que funcionar cuando lo demás falla) y el bucle de dibujo del visualizador (es pintura, no decisiones), los dos trazados y documentados como excepción.</li>
+    </ul>
+</section>
+
+<footer class="prose small" style="display:grid;gap:6px">
+    <p>Método: un script con acorn recorre los ficheros <code>src/*.js</code>, localiza cada callback y comprueba si su cuerpo, o un ayudante local que llama, invoca <code>gobj_send_event</code> o <code>gobj_post_event</code>. Las reanudaciones de <code>await</code> se cuentan por separado. Los eventos del elemento multimedia se cuentan aparte porque se registran a través de un ayudante.</p>
+    <p>Estado de las versiones: yunovídeo 1.0.6 desplegada en yunovideo.com (12 de 12 tests); yunomúsica 2.37.0 desplegada en yunomusica.com (36 de 36 tests, verificada también contra el sitio real).</p>
+</footer>
+
+</div>
