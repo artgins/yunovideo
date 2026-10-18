@@ -138,10 +138,12 @@ function size_of(bytes)
         return "";
     }
     if(bytes >= 1073741824) {
-        return [["span", {}, (bytes / 1073741824).toFixed(2)],
+        return [["span", {}, (bytes / 1073741824).toFixed(2)], " ",
                 ["span", {class: "VID_UNIT", i18n: "unit gb"}, t("unit gb")]];
     }
-    return [["span", {}, String(Math.round(bytes / 1048576))],
+    /*  The " " between them is a real space (an array's strings are not
+        trimmed): read, copied and heard as "740 MB". */
+    return [["span", {}, String(Math.round(bytes / 1048576))], " ",
             ["span", {class: "VID_UNIT", i18n: "unit mb"}, t("unit mb")]];
 }
 

@@ -384,6 +384,7 @@ function build_verdict()
                 ["span", {i18n: "memory in use"}, t("memory in use")],
                 ["span", {class: "VID_DEV_VAL"}, [
                     ["span", {}, String(death.was_heap)],
+                    " ",    // a real space: read, copied and heard as "812 MB"
                     ["span", {class: "VID_UNIT", i18n: "unit mb"}, t("unit mb")]
                 ]]
             ]]);

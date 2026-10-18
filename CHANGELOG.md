@@ -4,6 +4,11 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.6 — 2026-10-18
+
+- A size and its unit are separated by a real space ("740 MB", "1.23 Go"):
+  the gap was drawn by CSS, so the text read, copied and heard was "740MB".
+
 ## 1.0.5 — 2026-10-18
 
 - `package-lock.json` is committed: it was ignored, so two builds of the same

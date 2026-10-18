@@ -628,10 +628,6 @@
 /*  The value half of a "label: value" line. A separate node because the
     label is translated and the value never is — a heap size and a track
     name mean the same in every language. */
-/*  A figure and its unit are two nodes (the unit is translated), and
-    createElement2 trims text: the space between them is drawn here. */
-.VID_UNIT { margin-inline-start: 0.25em; }
-
 .VID_DEV_VAL {
     font-weight: 600;
     margin-inline-start: 0.4ch;
