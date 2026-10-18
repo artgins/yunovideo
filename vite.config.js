@@ -100,6 +100,7 @@ export default defineConfig({
     build: {
         outDir: "dist",
         emptyOutDir: true,
+        chunkSizeWarningLimit: 9000,
     },
     server: {
         watch: {
