@@ -182,6 +182,8 @@ const hi = {
         "browser console only": "केवल ब्राउज़र कंसोल (इस विंडो में कुछ नहीं दिखता)",
         "dev window and browser console": "डेवलपर विंडो और ब्राउज़र कंसोल",
         "dev window only": "केवल डेवलपर विंडो (ब्राउज़र कंसोल साफ़ रहता है)",
+        "one line": "पंक्ति",
+        "traffic one line per message": "ट्रैफ़िक: प्रति संदेश एक पंक्ति",
         "traffic payload folded": "ट्रैफ़िक: सामग्री संक्षिप्त",
         "traffic payload laid out": "ट्रैफ़िक: सामग्री विस्तृत",
         "navigation": "नेविगेशन",

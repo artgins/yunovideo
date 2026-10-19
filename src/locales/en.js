@@ -182,6 +182,8 @@ const en = {
         "browser console only": "Browser console only (nothing is shown in this window)",
         "dev window and browser console": "Dev window and browser console",
         "dev window only": "Dev window only (the browser console stays clean)",
+        "one line": "Line",
+        "traffic one line per message": "Traffic: one line per message",
         "traffic payload folded": "Traffic: payload folded",
         "traffic payload laid out": "Traffic: payload laid out",
         "navigation": "Navigation",

@@ -184,6 +184,8 @@ const pt = {
         "browser console only": "Só o console do navegador (nada é mostrado nesta janela)",
         "dev window and browser console": "Janela de desenvolvimento e console do navegador",
         "dev window only": "Só a janela de desenvolvimento (o console do navegador fica limpo)",
+        "one line": "Linha",
+        "traffic one line per message": "Tráfego: uma linha por mensagem",
         "traffic payload folded": "Tráfego: conteúdo recolhido",
         "traffic payload laid out": "Tráfego: conteúdo expandido",
         "navigation": "Navegação",

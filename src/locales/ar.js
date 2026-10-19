@@ -190,6 +190,8 @@ const ar = {
         "browser console only": "وحدة تحكم المتصفح فقط (لا يُعرض شيء في هذه النافذة)",
         "dev window and browser console": "نافذة المطوّر ووحدة تحكم المتصفح",
         "dev window only": "نافذة المطوّر فقط (تبقى وحدة تحكم المتصفح نظيفة)",
+        "one line": "سطر",
+        "traffic one line per message": "حركة المرور: سطر واحد لكل رسالة",
         "traffic payload folded": "حركة المرور: المحتوى مطوي",
         "traffic payload laid out": "حركة المرور: المحتوى موسّع",
         "navigation": "التنقل",

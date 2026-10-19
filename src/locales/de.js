@@ -182,6 +182,8 @@ const de = {
         "browser console only": "Nur Browser-Konsole (in diesem Fenster wird nichts angezeigt)",
         "dev window and browser console": "Entwicklerfenster und Browser-Konsole",
         "dev window only": "Nur Entwicklerfenster (die Browser-Konsole bleibt sauber)",
+        "one line": "Zeile",
+        "traffic one line per message": "Verkehr: eine Zeile pro Nachricht",
         "traffic payload folded": "Verkehr: Inhalt eingeklappt",
         "traffic payload laid out": "Verkehr: Inhalt ausgebreitet",
         "navigation": "Navigation",

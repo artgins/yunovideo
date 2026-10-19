@@ -4,6 +4,16 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.7 — 2026-10-19
+
+- gobj-ui `^7.27.23`. The Developer window has a **Line** view of the
+  traffic again; its two new keys are added in the ten languages.
+- Known: `npm test -- offline` fails, and failed on 1.0.6 too. After a
+  `reload()` with the context offline, this Playwright Chromium reports
+  `navigator.onLine === true` (false before the reload), so
+  `update_check.js` asks for `version.json` and Chrome logs the failed
+  load. The app comes up and plays offline; the other 11 tests pass.
+
 ## 1.0.6 — 2026-10-18
 
 - A size and its unit are separated by a real space ("740 MB", "1.23 Go"):

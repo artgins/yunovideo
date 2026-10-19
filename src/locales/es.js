@@ -184,6 +184,8 @@ const es = {
         "browser console only": "Sólo la consola del navegador (nada se muestra en esta ventana)",
         "dev window and browser console": "La ventana de desarrollo y la consola del navegador",
         "dev window only": "Sólo la ventana de desarrollo (la consola del navegador queda limpia)",
+        "one line": "Línea",
+        "traffic one line per message": "Tráfico: una línea por mensaje",
         "traffic payload folded": "Tráfico: contenido plegado",
         "traffic payload laid out": "Tráfico: contenido desplegado",
         "navigation": "Navegación",

@@ -184,6 +184,8 @@ const fr = {
         "browser console only": "Console du navigateur seulement (rien n'est affiché dans cette fenêtre)",
         "dev window and browser console": "Fenêtre de développement et console du navigateur",
         "dev window only": "Fenêtre de développement seulement (la console du navigateur reste propre)",
+        "one line": "Ligne",
+        "traffic one line per message": "Trafic : une ligne par message",
         "traffic payload folded": "Trafic : contenu replié",
         "traffic payload laid out": "Trafic : contenu déplié",
         "navigation": "Navigation",

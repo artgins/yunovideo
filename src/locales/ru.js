@@ -186,6 +186,8 @@ const ru = {
         "browser console only": "Только консоль браузера (в этом окне ничего не показывается)",
         "dev window and browser console": "Окно разработчика и консоль браузера",
         "dev window only": "Только окно разработчика (консоль браузера остаётся чистой)",
+        "one line": "Строка",
+        "traffic one line per message": "Трафик: одна строка на сообщение",
         "traffic payload folded": "Трафик: содержимое свёрнуто",
         "traffic payload laid out": "Трафик: содержимое развёрнуто",
         "navigation": "Навигация",

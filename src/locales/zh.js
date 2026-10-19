@@ -180,6 +180,8 @@ const zh = {
         "browser console only": "仅浏览器控制台（此窗口不显示任何内容）",
         "dev window and browser console": "开发窗口和浏览器控制台",
         "dev window only": "仅开发窗口（浏览器控制台保持干净）",
+        "one line": "单行",
+        "traffic one line per message": "流量：每条消息一行",
         "traffic payload folded": "流量：内容折叠",
         "traffic payload laid out": "流量：内容展开",
         "navigation": "导航",

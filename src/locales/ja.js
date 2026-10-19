@@ -180,6 +180,8 @@ const ja = {
         "browser console only": "ブラウザーのコンソールのみ（このウィンドウには何も表示しません）",
         "dev window and browser console": "開発ウィンドウとブラウザーのコンソール",
         "dev window only": "開発ウィンドウのみ（ブラウザーのコンソールはきれいなまま）",
+        "one line": "1行",
+        "traffic one line per message": "トラフィック：メッセージごとに1行",
         "traffic payload folded": "トラフィック：内容を折りたたみ",
         "traffic payload laid out": "トラフィック：内容を展開",
         "navigation": "ナビゲーション",
