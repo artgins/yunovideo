@@ -34,8 +34,21 @@ const ready = await page.evaluate(async () => {
 check(ready, "the service worker is active after the first visit");
 
 await page.context().setOffline(true);
+/*  Playwright's setOffline() cuts the network, but this Chromium does not
+    carry it into navigator.onLine for a document loaded AFTER the cut:
+    measured on 2026-10-19, false before the reload and true after it --
+    with reload(), goto() or a new page alike. A browser on a plane says
+    false, and the app relies on it to skip its update check
+    (update_check.js), so the test says it too, for every document from
+    here on. It does not hide that check: without its guard the fetch of
+    version.json fails, the browser logs it, and report() fails the test.  */
+await page.context().addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "onLine", {configurable: true, get: () => false});
+});
 await page.reload({waitUntil: "domcontentloaded"});
 await page.waitForTimeout(2500);
+check(await page.evaluate(() => navigator.onLine) === false,
+    "the reloaded page knows it is offline (navigator.onLine)");
 const up = await page.locator(".VID_ROOT .yui-shell .C_VID_SOURCES").count();
 check(up === 1, "with no network, the app still comes up");
 await route(page, "#/player", 800);
