@@ -4,6 +4,10 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.11 — 2026-10-19
+
+- gobj-ui `^7.27.27` (deploy round): in the gobj tree of the Developer window each trace scope is set where it belongs (a card: this gobj; the gclass viewer: every gobj of the gclass; *traces of the yuno*: the whole yuno), and the gclass viewer lays itself out by its own width, short zones first. 12 of 12 tests pass inside the round; console clean.
+
 ## 1.0.10 — 2026-10-19
 
 - gobj-ui `^7.27.26` (deploy round): the gobj tree of the Developer window has a minimap from 20 cards on, and a running gobj with nothing to play (no `mt_play` or `mt_pause` in its gclass) reads `● running`, not `‖ running (paused)`. 12 of 12 tests pass inside the round; console clean.
