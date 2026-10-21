@@ -4,6 +4,10 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.14 — 2026-10-21
+
+- gobj-ui `^7.27.29` (deploy round): the library adds `C_YUI_UPDATE_WATCH`, "a new version is available"; this app keeps its own notice. `deploy_yunovideo.sh` uploads with `rsync --delete-after --delay-updates`, so a page loaded during the upload never gets an `index.html` whose chunks are not there yet. Console clean.
+
 ## 1.0.13 — 2026-10-21
 
 - i18next `^26.5.4`, vite `^8.3.5` (ranges caught up within their majors; tabulator-tables 6.7.0 in the lockfile, through gobj-ui). Nothing the app uses changes: i18next 26.5.4 keeps a `{{placeholder}}` that arrives inside an interpolated value literal; vite 8.3.5 is a build and dev-server patch. `npm audit` clean; 12 of 12 tests pass. Console clean.

@@ -1,7 +1,7 @@
 {
     "name": "yunovideo",
     "private": true,
-    "version": "1.0.13",
+    "version": "1.0.14",
     "type": "module",
     "license": "MIT",
     "description": "Yunovídeo — a small, offline SPA (Vite + Yuneta gobj-ui declarative shell) that reads the videos on your device and plays them from a queue you curate. Folders are authorised once and remembered; no file is copied and no file leaves the device. Every video remembers where you left it.",
@@ -17,7 +17,7 @@
     },
     "dependencies": {
         "@yuneta/gobj-js": "^7.27.0",
-        "@yuneta/gobj-ui": "^7.27.28",
+        "@yuneta/gobj-ui": "^7.27.29",
         "bulma": "^1.0.4",
         "i18next": "^26.5.4"
     },
