@@ -4,6 +4,10 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.20 — 2026-10-22
+
+- i18next `^26.5.6` (range caught up within its major; tabulator-tables 6.7.1 in the lockfile, through gobj-ui). Nothing the app uses changes: i18next 26.5.5/26.5.6 deep-copies the store of `cloneInstance({forkResourceStore: true})` and keeps literal a `{{placeholder}}` inside an unescaped `{{- var}}` value; neither is used. `npm audit` clean; 12 of 12 tests pass. Deployed; serves the new bundle, console clean.
+
 ## 1.0.19 — 2026-10-22
 
 - gobj-ui `^7.27.34` (deploy round): the gobj tree's gclass viewer no longer stays locked when a newer trace set overtakes its read. No code change in this app.
