@@ -4,6 +4,10 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.15 — 2026-10-22
+
+- gobj-ui `^7.27.30` (deploy round): review fixes in the library (a `keep_alive` tree tells its content once, the gobj tree's camera at any zoom, the gclass viewer). No code change in this app. Console clean.
+
 ## 1.0.14 — 2026-10-21
 
 - gobj-ui `^7.27.29` (deploy round): the library adds `C_YUI_UPDATE_WATCH`, "a new version is available"; this app keeps its own notice. `deploy_yunovideo.sh` uploads with `rsync --delete-after --delay-updates`, so a page loaded during the upload never gets an `index.html` whose chunks are not there yet. Console clean.
