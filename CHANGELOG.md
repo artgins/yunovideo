@@ -4,6 +4,10 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.16 — 2026-10-22
+
+- gobj-ui `^7.27.31` (deploy round): review fixes in the library (a gclass viewer reopened during a trace set opens locked; a `C_YUI_NODE` tree ignores a route of another stage). No code change in this app.
+
 ## 1.0.15 — 2026-10-22
 
 - gobj-ui `^7.27.30` (deploy round): review fixes in the library (a `keep_alive` tree tells its content once, the gobj tree's camera at any zoom, the gclass viewer). No code change in this app. Console clean.
