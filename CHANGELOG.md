@@ -4,6 +4,15 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.22 — 2026-10-25
+
+- **`licenses.txt` beside the bundle**, written at build time by gobj-ui
+  7.28.0's `yunetaLicensesPlugin`: the license of every package with code in
+  the bundle, with the Font Awesome attribution (CC BY 4.0) that minifying
+  dropped. Served at `/licenses.txt`. gobj-js `^7.28.0` (`jwtDecode()` /
+  `jwt2json()` removed, unused here) and gobj-ui `^7.28.0`.
+  Deployed on yunovideo.com, `licenses.txt` read back.
+
 ## 1.0.21 — 2026-10-22
 
 - tabulator-tables 6.7.1 in the lockfile (through gobj-ui): 1.0.20 said so and still carried 6.7.0, because gobj-ui's peer range was already met and `npm install` left it. Tabulator 6.7.1 fixes Enter moving two rows with `selectableRange` (not used). Tests pass; deployed; serves the new bundle, console clean.

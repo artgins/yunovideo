@@ -17,6 +17,7 @@
  ***********************************************************************/
 import { defineConfig } from "vite";
 import { readFileSync, readdirSync } from "fs";
+import {yunetaLicensesPlugin} from "@yuneta/gobj-ui/vite-plugin-yuneta-licenses.js";
 
 /*  The version, and the moment this bundle was built, baked in as
     constants. Both are shown in the help dialog and in the Sources
@@ -79,7 +80,7 @@ const service_worker = {
 };
 
 export default defineConfig({
-    plugins: [version_file, service_worker],
+    plugins: [version_file, service_worker, yunetaLicensesPlugin()],
     define: {
         __APP_VERSION__: JSON.stringify(pkg.version),
         __BUILD_STAMP__: JSON.stringify(stamp),
