@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.23 — 2026-10-25
+
+- gobj-ui `^7.28.1`: a chart's Y axis is as wide as its labels (uPlot's fixed
+  50px cut every value past five digits). This app draws no chart, so its
+  bundle does not change in behaviour. Deployed on yunovideo.com, console clean.
+
 ## 1.0.22 — 2026-10-25
 
 - **`licenses.txt` beside the bundle**, written at build time by gobj-ui
