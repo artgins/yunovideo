@@ -11,7 +11,7 @@
  *          All Rights Reserved.
  ***********************************************************************/
 import {ensure_fixtures} from "./fixtures.mjs";
-import {launch, new_page, boot, route, add_source, report} from "./lib.mjs";
+import {launch, new_page, boot, route, add_source, cue_source, report} from "./lib.mjs";
 
 const FIX = ensure_fixtures();
 let failures = 0;
@@ -27,6 +27,7 @@ const browser = await launch();
 const page = await new_page(browser, {locale: "en-US"});
 await boot(page);
 await add_source(page, [FIX.root], 1, 2500);
+await cue_source(page);
 await route(page, "#/player", 800);
 const qn = () => page.locator(".VID_QROW").count();
 const n0 = await qn();
@@ -45,7 +46,7 @@ check(await qn() === 2, `a queue of two, a saved list of ${n0}`);
 async function play_list()
 {
     await route(page, "#/lists", 700);
-    await page.click('.VID_LISTROW .VID_PLAYLIST');
+    await page.click('.VID_LISTBOX .VID_PLAYLIST');
     await page.waitForTimeout(400);
     return page.locator(".VID_CONFIRM_CARD").count();
 }

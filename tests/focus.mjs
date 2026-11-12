@@ -13,7 +13,7 @@
  *          All Rights Reserved.
  ***********************************************************************/
 import {ensure_fixtures} from "./fixtures.mjs";
-import {launch, new_page, boot, route, add_source, report} from "./lib.mjs";
+import {launch, new_page, boot, route, add_source, cue_source, report} from "./lib.mjs";
 
 const FIX = ensure_fixtures();
 let failures = 0;
@@ -29,6 +29,7 @@ const browser = await launch();
 const page = await new_page(browser, {locale: "en-US"});
 await boot(page);
 await add_source(page, [FIX.root], 1, 2500);
+await cue_source(page);
 await route(page, "#/player", 800);
 
 /*  The fixtures last six seconds: looped, one plays past a view and a
@@ -129,6 +130,7 @@ await page.waitForTimeout(300);
 const small = await new_page(browser, {locale: "en-US", viewport: {width: 1280, height: 380}});
 await boot(small);
 await add_source(small, [FIX.root], 1, 2500);
+await cue_source(small);
 await route(small, "#/library", 700);
 await small.click('.VID_CHIP[data-view="all"]');
 await small.waitForTimeout(400);

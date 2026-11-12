@@ -4,6 +4,27 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.24 — 2026-11-12
+
+- **Adding a source no longer cues it on the deck**, not even an empty one:
+  it stays in Sources and the Library, and what goes to the player is the
+  user's call (Sources' *Add to queue*, the Library, a list).
+- **The player's controls are never below the fold.** The picture was capped at
+  `56vh`, which ignored the toolbar above and the icon-bar below: on a short
+  window the transport ended up under the bar and the browser had to be zoomed
+  out to reach it. The centre zone is now a size container, the player is
+  capped at the height the zone has, and the picture is what shrinks
+  (`min-height: 7rem`); the scrub bar and the transport keep theirs.
+- **Lists**: the saved lists are boxes, as in yunomúsica — the name (with its
+  chevron) unfolds it, *Play*, *Add to queue* and *Delete* with their words
+  beside it. *Continue watching* is gone, with its "forget every place": every
+  video and every saved list already comes back where it was left. Five keys
+  left the ten catalogues.
+- Tests: `cue_source()` puts a source on the deck the way a user does; e2e
+  checks that adding one leaves the deck empty and navigates nowhere;
+  `resume` reads the place off the library row. `fitmobile` still times out in
+  `setFiles` (folder picker under mobile emulation) — it does on 1.0.23 too.
+
 ## 1.0.23 — 2026-10-25
 
 - gobj-ui `^7.28.1`: a chart's Y axis is as wide as its labels (uPlot's fixed

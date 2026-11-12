@@ -106,6 +106,20 @@ async function add_source(page, files, which = 1, settle = 3000)
 }
 
 
+/*  Put the first source on the deck. Adding a source does not cue it
+    (the user decides what goes to the player), so a test that wants a
+    deck asks for one, the way a user would: Sources' "add to queue".
+    The settle outlasts the deck's save (1.5 s after the last change,
+    save_deck_soon in c_yunovideo.js), so a reload right after it finds
+    the deck on disk. */
+async function cue_source(page, settle = 2000)
+{
+    await route(page, "#/sources", 600);
+    await page.click(".VID_SRCROW .VID_ADDSRC");
+    await page.waitForTimeout(settle);
+}
+
+
 /*  WCAG relative luminance and contrast ratio, over whatever
     getComputedStyle hands back. */
 function lum(css)
@@ -164,6 +178,6 @@ function report(page)
 
 export {
     BASE, OUT, CHROME,
-    launch, new_page, boot, route, add_source,
+    launch, new_page, boot, route, add_source, cue_source,
     lum, contrast, set_theme, set_palette, report,
 };

@@ -12,7 +12,7 @@
  *          All Rights Reserved.
  ***********************************************************************/
 import {ensure_fixtures} from "./fixtures.mjs";
-import {OUT, launch, new_page, boot, route, add_source, report} from "./lib.mjs";
+import {OUT, launch, new_page, boot, route, add_source, cue_source, report} from "./lib.mjs";
 
 const FIX = ensure_fixtures();
 
@@ -39,7 +39,15 @@ await shot("02-sources");
 const count = await page.locator(".VID_SRCROW .VID_T2").first().textContent();
 check(/7\s*videos/.test(count.replace(/\s+/g, " ")), `source row counts 7 videos: "${count}"`);
 
-/*  Adding a source to an empty deck CUES it. */
+/*  Adding a source does NOT touch the deck, not even an empty one:
+    what goes to the player is the user's call. */
+await route(page, "#/player", 900);
+const qrows0 = await page.locator(".VID_QROW").count();
+check(qrows0 === 0, `adding a source left the deck empty: ${qrows0} rows`);
+check((await page.evaluate(() => location.hash)) === "#/player", "and nothing navigated on its own");
+
+/*  …and Sources' "add to queue" is how it gets there. */
+await cue_source(page);
 await route(page, "#/player", 900);
 const qrows = await page.locator(".VID_QROW").count();
 check(qrows === 7, `the deck was cued with the folder: ${qrows} rows`);
@@ -151,7 +159,7 @@ check(after === 6, `after a reload the deck has its 6 rows: ${after}`);
 const origin2 = await page.locator(".VID_ORIGIN").textContent();
 check(origin2.includes("Para el finde"), `and is still the saved list: "${origin2}"`);
 await route(page, "#/lists", 900);
-const lists = await page.locator(".VID_LISTROW .VID_NAME").allTextContents();
+const lists = await page.locator(".VID_LISTBOX .VID_TITLE").allTextContents();
 check(lists.includes("Para el finde"), `the list is in Lists: ${lists.join("|")}`);
 await shot("08-lists");
 

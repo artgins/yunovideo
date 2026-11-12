@@ -44,7 +44,7 @@ import {diag} from "./diag.js";
 import {
     ingest, begin_read, drop_source_tracks, unlist_source_tracks, relink_source, cancel_ingest,
     tags_of_source, restore_tracks, set_file_resolver,
-    queue_length, queue_add, videos_of_source, reload_current,
+    reload_current,
 } from "./video_store.js";
 import {is_video, is_subtitle} from "./names.js";
 import {
@@ -1306,13 +1306,11 @@ async function scan_now(id, force)
     emit();
     await persist(source);
 
-    /*  A folder just added with nothing on the deck: cue it. Adding
-        music and landing on an empty player that points back at Sources
-        is a loop, and there is nothing to interrupt when the queue is
-        empty. It is CUED, not started — play stays explicit. */
-    if(source.count && !queue_length()) {
-        queue_add(videos_of_source(id), "append");
-    }
+    /*  A source just added stays where it was put: in Sources and the
+        Library. It is NOT cued on the deck, not even an empty one —
+        what goes to the player is the user's call, made from the
+        Library or a list. (It used to be cued when the queue was
+        empty; that read as the app taking the decision.) */
 
     /*  Keep what this scan learned, so the next start does not have to
         learn it again. */

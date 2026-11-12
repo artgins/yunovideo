@@ -10,8 +10,9 @@
  *      plays. This plays a 40-second film for fourteen seconds, then
  *      opens the app in a SECOND page of the same browser without
  *      closing the first — no pagehide, no pause, nothing to write on —
- *      and checks the film is in "Continue watching" and starts again
- *      at the second it was left, saying so, with a way to start over.
+ *      and checks the film's row in the library draws how much of it
+ *      was watched, and that it starts again at the second it was
+ *      left, saying so, with a way to start over.
  *
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
@@ -56,7 +57,7 @@ page2.on("console", (m) => {
     there. */
 /*  The second copy of the app boots, which reads the stats and writes
     none of them. */
-await page2.goto(BASE + "#/lists", {waitUntil: "networkidle"});
+await page2.goto(BASE + "#/library", {waitUntil: "networkidle"});
 const on_disk = await page2.evaluate(() => new Promise((resolve) => {
     const req = indexedDB.open("yunovideo");
     req.onsuccess = () => {
@@ -75,12 +76,13 @@ const t_close = await page.evaluate(() => document.querySelector("video.VID_VIDE
 await page.close({runBeforeUnload: false});
 await page2.reload({waitUntil: "networkidle"});
 await page2.waitForTimeout(2500);
-const cont = await page2.locator(".C_VID_LISTS .VID_ROW .VID_NAME").first().textContent().catch(() => "");
-check(cont === "Arrival", `"Continue watching" holds the film: "${cont}"`);
-const bar = await page2.locator(".C_VID_LISTS .VID_WATCHED i").first().getAttribute("style").catch(() => "");
-check(/width:\s*[1-9]/.test(bar || ""), `its row draws how much was watched: ${bar}`);
+await page2.click('.VID_CHIP[data-view="all"]');
+await page2.waitForTimeout(400);
+const row = page2.locator(".C_VID_LIBRARY .VID_ROW", {hasText: "Arrival"}).first();
+const bar = await row.locator(".VID_WATCHED i").first().getAttribute("style").catch(() => "");
+check(/width:\s*[1-9]/.test(bar || ""), `its row in the library draws how much was watched: ${bar}`);
 
-await page2.locator(".C_VID_LISTS .VID_ROW", {hasText: "Arrival"}).first().locator(".VID_THUMBBTN").click();
+await row.locator(".VID_THUMBBTN").click();
 await page2.waitForTimeout(1500);
 const back = await page2.evaluate(() => document.querySelector("video.VID_VIDEO").currentTime);
 check(back >= 9 && back <= t_close + 2, `it starts again where it was left: ${back.toFixed(1)} s`);

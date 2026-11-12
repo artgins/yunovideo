@@ -884,19 +884,44 @@
 }
 .VID_DECK.is-maxq .VID_DECKCARD { display: none; }
 
+/*  The controls are never below the fold.
+ *
+ *  `56vh` alone did not do it: the viewport is not the room the deck
+ *  has. The toolbar takes its share above, and on a narrow screen the
+ *  icon-bar takes another below — on a short window (a laptop, a
+ *  tablet on its side) the transport ended up under that bar, and the
+ *  only way to reach it was to zoom the browser out.
+ *
+ *  So the centre zone is a SIZE container (its size is the grid's,
+ *  never its content's, so the containment changes nothing), the
+ *  player as a whole is capped at the height the zone has, and the
+ *  PICTURE is what gives: it shrinks, the scrub bar and the transport
+ *  keep their height — whatever the transport wraps to on a phone,
+ *  because nothing here counts its rows. The floor keeps a picture
+ *  worth the name on an absurdly short window; below that, the deck
+ *  scrolls as before. */
+.yui-base-grid > .yui-zone-center {
+    container-type: size;
+}
 .VID_PLAYER {
     display: flex;
     flex-direction: column;
+    max-height: calc(100cqh - 1.2rem);
     border-radius: 14px;
     overflow: hidden;
     background: #000;
     color: #f2f2f2;
     direction: ltr;             /* a film and its timeline do not mirror */
 }
+.VID_PLAYER > * {
+    flex: none;
+}
 .VID_STAGE {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
+    flex: 0 1 auto;
+    min-height: 7rem;
     max-height: 56vh;
     background: #000;
     cursor: pointer;
@@ -1051,6 +1076,7 @@
     border-radius: 0;
     width: 100%;
     height: 100%;
+    max-height: none;           /* the zone's cap is for the page, not the screen */
 }
 .VID_PLAYER:fullscreen > .VID_STAGE {
     flex: 1;
@@ -1430,8 +1456,56 @@
     font-weight: 700;
 }
 .VID_LISTNOTE { font-size: 0.8rem; margin: 0 0 0.3rem; }
-.VID_LISTROW .VID_ROWBODY { padding-inline-start: 0.3rem; }
-.VID_LISTROW.is-open .VID_NAME { color: var(--vid-accent); }
+
+/*  A saved list is a box (the source's box): the name and its count
+    on one side, the buttons on the other; on a narrow screen the
+    buttons go under the name. */
+.VID_LISTBOXES { margin-top: 0.6rem; }
+.VID_LISTBOX {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem 0.8rem;
+}
+.VID_LISTBOX .VID_SRCACTIONS { margin-top: 0; }
+.VID_LISTNAME {
+    flex: 1 1 12rem;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+.VID_LISTNAME .VID_T1 {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.VID_LISTNAME .VID_TITLE {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.VID_LISTNAME .VID_T2 {
+    padding-inline-start: calc(18px + 0.3rem);
+    font-size: 0.82rem;
+    color: var(--bulma-text-weak, #8a8a8a);
+}
+.VID_LISTNAME .VID_FACT > span + span { margin-inline-start: 0.3rem; }
+.VID_LISTCHEV {
+    display: inline-flex;
+    flex: none;
+    color: var(--bulma-text-weak, #8a8a8a);
+}
+.VID_LISTBOX.is-open .VID_LISTCHEV { transform: rotate(180deg); }
+.VID_LISTBOX.is-open .VID_LISTNAME .VID_TITLE { color: var(--vid-accent); }
+.VID_LISTENTRIES {
+    padding: 0.3rem 0 0.2rem;
+    padding-inline-start: 0.6rem;
+}
 .VID_GONE { opacity: 0.55; }
 .VID_MISSING { font-size: 0.8rem; }
 

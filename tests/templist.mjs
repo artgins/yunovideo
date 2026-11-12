@@ -11,7 +11,7 @@
  *          All Rights Reserved.
  ***********************************************************************/
 import {ensure_fixtures} from "./fixtures.mjs";
-import {OUT, launch, new_page, boot, route, add_source, report} from "./lib.mjs";
+import {OUT, launch, new_page, boot, route, add_source, cue_source, report} from "./lib.mjs";
 
 const FIX = ensure_fixtures();
 let failures = 0;
@@ -27,6 +27,7 @@ const browser = await launch();
 const page = await new_page(browser, {locale: "en-US"});
 await boot(page);
 await add_source(page, [FIX.root], 1, 2500);
+await cue_source(page);
 
 await route(page, "#/player", 800);
 const before = await page.locator(".VID_QROW .VID_NAME").allTextContents();

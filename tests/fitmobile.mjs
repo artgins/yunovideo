@@ -10,7 +10,7 @@
  *          All Rights Reserved.
  ***********************************************************************/
 import {ensure_fixtures} from "./fixtures.mjs";
-import {OUT, launch, new_page, boot, route, add_source, report} from "./lib.mjs";
+import {OUT, launch, new_page, boot, route, add_source, cue_source, report} from "./lib.mjs";
 
 const FIX = ensure_fixtures();
 let failures = 0;
@@ -20,6 +20,7 @@ const browser = await launch();
 const page = await new_page(browser, {viewport: {width: W, height: 740}, mobile: true, locale: "de-DE"});
 await boot(page);
 await add_source(page, [FIX.root], 1, 2500);
+await cue_source(page);
 await route(page, "#/player", 800);
 await page.click(".VID_QROW >> nth=1 >> .VID_THUMBBTN");
 await page.waitForTimeout(1000);

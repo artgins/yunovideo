@@ -1,25 +1,25 @@
 /***********************************************************************
  *          c_vid_lists.js
  *
- *      C_VID_LISTS — the lists: one that is a consequence of watching,
- *      the ones you saved, and two more nobody saved.
+ *      C_VID_LISTS — the lists: the ones you saved, and two nobody saved.
  *
- *        Continue watching   every video left half-way, sorted by NAME:
- *                            the app keeps where each one was left and
- *                            not when, so there is no "most recent" to
- *                            sort by — on purpose (see stats_store.js).
- *        Saved lists         the queues you gave a name. Tapping a name
+ *        Saved lists         the queues you gave a name, each in its own
+ *                            box, as in yunomúsica. Tapping a name
  *                            unfolds it; Play makes it the deck, which
  *                            throws the current one away, so it asks
  *                            first — the one place in the app that does.
  *        Loved               every video with a heart, most first.
  *        Most watched        everything watched, most first.
  *
- *      The last three are built from the numbers every time this
- *      screen is drawn, never stored, which is what keeps them from
- *      ever disagreeing with the numbers on the rows. A video whose
- *      source is not authorised right now cannot be resolved, and is
- *      COUNTED rather than dropped in silence.
+ *      There is no "Continue watching" any more: every video keeps
+ *      where it was left, and a saved list comes back where it was
+ *      left, so a third list of the same places said nothing new.
+ *
+ *      The last two are built from the numbers every time this screen
+ *      is drawn, never stored, which is what keeps them from ever
+ *      disagreeing with the numbers on the rows. A video whose source
+ *      is not authorised right now cannot be resolved, and is COUNTED
+ *      rather than dropped in silence.
  *
  *          Copyright (c) 2026, ArtGins.
  *          All Rights Reserved.
@@ -42,7 +42,7 @@ import {
     subscribe_playlists, all_playlists, resolve, entries_of, remove_playlist,
 } from "./playlists_store.js";
 import {
-    subscribe_stats, ranked, in_progress, split_key, clear_counts, clear_places, heart,
+    subscribe_stats, ranked, split_key, clear_counts, heart,
 } from "./stats_store.js";
 import {open_confirm} from "./confirm_replace.js";
 import {dialog_action} from "./dialogs.js";
@@ -50,7 +50,7 @@ import {open_card, card_action} from "./video_card.js";
 import {video_row, refresh_rows, mark_playing} from "./rows.js";
 import {subscribe_thumbs} from "./thumbs.js";
 import {count_pair} from "./plural.js";
-import {P, svg, ico, named, named_for, new_id, clear} from "./ui.js";
+import {P, svg, ico, named, named_for, new_id, clear, disabled_if} from "./ui.js";
 
 import {t} from "i18next";
 
@@ -62,7 +62,8 @@ const GCLASS_NAME = "C_VID_LISTS";
 
 const LISTS_ROUTE = "/lists";
 
-const collator = new Intl.Collator(undefined, {sensitivity: "base", numeric: true});
+/*  The fold of a saved list: a chevron, because it opens ONE thing. */
+const CHEVRON = "M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z";
 
 
 /***************************************************************
@@ -79,7 +80,7 @@ let PRIVATE_DATA = {
     unsubs:   [],
     $content: null,
     open:     "",       // id of the saved list unfolded
-    asking:   "",       // what is being asked: "places", "views", or "del:<id>"
+    asking:   "",       // what is being asked: "views", or "del:<id>"
     shown:    true,     // on screen: created by the route that shows it
     shape:    "",       // which rows the stats put on screen, at the last render
 };
@@ -198,11 +199,6 @@ function resolve_rows(rows)
 /*  The list a context names, in the order it is shown. */
 function list_of(gobj, ctx)
 {
-    if(ctx === "continue") {
-        return resolve_rows(in_progress()).videos
-            .sort((a, b) => collator.compare(a.show || a.title, b.show || b.title) ||
-                            (a.season - b.season) || (a.episode - b.episode));
-    }
     if(ctx === "loved") {
         return resolve_rows(ranked("hearts")).videos;
     }
@@ -215,18 +211,16 @@ function list_of(gobj, ctx)
     return [];
 }
 
-/*  Which rows the numbers decide: what is half watched, what is
-    loved, what is most watched, in their order, and how many of each
-    no longer resolve. While it holds, a change of the numbers is
-    written into the rows; when it moves, the screen is rebuilt. */
+/*  Which rows the numbers decide: what is loved, what is most
+    watched, in their order, and how many of each no longer resolve.
+    While it holds, a change of the numbers is written into the rows;
+    when it moves, the screen is rebuilt. */
 function shape_of(gobj)
 {
     const ids = (list) => list.map((v) => v.uid).join(",");
-    let cont = resolve_rows(in_progress());
     let loved = resolve_rows(ranked("hearts"));
     let watched = resolve_rows(ranked("views"));
     return [
-        ids(list_of(gobj, "continue")), cont.missing,
         ids(loved.videos), loved.missing,
         ids(watched.videos), watched.missing,
     ].join("|");
@@ -244,7 +238,6 @@ function render(gobj)
     nodes.push(["header", {class: "VID_SECHEAD"}, [
         ["h1", {class: "VID_SECTITLE", i18n: "lists"}, t("lists")]
     ]]);
-    nodes.push(...section_continue(gobj));
     nodes.push(...section_saved(gobj));
     nodes.push(...section_ranked(gobj, "loved", "hearts", "loved", "loved empty"));
     nodes.push(...section_ranked(gobj, "watched", "views", "most watched", "most watched empty"));
@@ -296,33 +289,18 @@ function ask_buttons(gobj, what, plain_key, ask_key)
         svg(P.sweep, 18), {click: () => gobj_send_event(gobj, "EV_ASK", {what: what}, gobj)}]];
 }
 
-function section_continue(gobj)
-{
-    let res = resolve_rows(in_progress());
-    let list = list_of(gobj, "continue");
-    let on = sounding();
-    let out = [section_head(gobj, "continue watching", list.length, {ctx: "continue"},
-        res.videos.length + res.missing
-            ? ask_buttons(gobj, "places", "forget every place", "forget every place?")
-            : [])];
-    out.push(["p", {class: "VID_DIM VID_LISTNOTE", i18n: "continue explained"}, t("continue explained")]);
-    for(const v of list) {
-        out.push(video_row(gobj, v, {ctx: "continue", playing: !!on && on.uid === v.uid}));
-    }
-    if(res.missing) {
-        out.push(missing_line(res.missing));
-    }
-    if(!list.length && !res.missing) {
-        out.push(["p", {class: "VID_EMPTY", i18n: "continue empty"}, t("continue empty")]);
-    }
-    return out;
-}
-
 function missing_line(n)
 {
     return ["p", {class: "VID_DIM VID_MISSING VID_T2"}, count_pair(n, "n missing")];
 }
 
+/***************************************************************
+ *  The saved lists, one box each — the same box as a source, and
+ *  the same shape as yunomúsica's lists: the name (which unfolds
+ *  it) and its count on one side, Play / Add to queue / Delete,
+ *  with their words, on the other. Unfolded, its videos follow
+ *  the box, every one of them, the unreachable ones too.
+ ***************************************************************/
 function section_saved(gobj)
 {
     let priv = gobj.priv;
@@ -337,68 +315,99 @@ function section_saved(gobj)
         out.push(["p", {class: "VID_EMPTY", i18n: "no lists yet"}, t("no lists yet")]);
         return out;
     }
+    let boxes = [];
     for(const pl of lists) {
-        let r = resolve(pl.id);
-        let kw = {id: pl.id};
-        const send = (ev) => () => gobj_send_event(gobj, ev, kw, gobj);
-        let del = "del:" + pl.id;
-        let tid = new_id();
-        let buttons = [
-            ["button", {class: "VID_IBTN VID_PLAYLIST", type: "button", ...named_for("play the list", tid),
-                        ...(r.tracks.length ? {} : {disabled: "disabled"})},
-                svg(P.play, 20), {click: send("EV_PLAY_LIST")}],
-            ["button", {class: "VID_IBTN VID_ADDLIST", type: "button", ...named_for("add all to queue", tid),
-                        ...(r.tracks.length ? {} : {disabled: "disabled"})},
-                svg(P.enqueue, 20), {click: send("EV_ADD_LIST")}]
-        ];
-        if(priv.asking === del) {
-            buttons.push(["button", {class: "VID_QBTN button is-small is-danger VID_DEL_YES",
-                                     type: "button", i18n: "delete this list?",
-                                     ...named_for("delete this list?", tid)},
-                t("delete this list?"), {click: () => gobj_send_event(gobj, "EV_ASK_YES",
-                    {what: del}, gobj)}]);
-            buttons.push(["button", {class: "VID_QBTN button is-small", type: "button", i18n: "cancel",
-                                     ...named("cancel")},
-                t("cancel"), {click: () => gobj_send_event(gobj, "EV_ASK_NO", {}, gobj)}]);
-        } else {
-            buttons.push(["button", {class: "VID_IBTN VID_DELLIST", type: "button",
-                                     ...named_for("delete this list", tid)},
-                svg(P.trash, 18), {click: () => gobj_send_event(gobj, "EV_ASK", {what: del}, gobj)}]);
-        }
-        let open = priv.open === pl.id;
-        out.push(["div", {class: "VID_ROW VID_LISTROW" + (open ? " is-open" : "")}, [
-            ["div", {class: "VID_ROWBODY"}, [
-                ["button", {class: "VID_NAME", type: "button", "aria-expanded": open ? "true" : "false",
-                            ...named_for("show what is in it", tid)},
-                    [["span", {class: "VID_TITLE", id: tid}, pl.name]], {click: send("EV_UNFOLD")}],
-                ["span", {class: "VID_META VID_T2"}, count_pair(pl.count, "n videos").concat(
-                    r.missing ? [["span", {class: "VID_FACT is-warn VID_T2"},
-                        count_pair(r.missing, "n missing")]] : [])]
+        boxes.push(list_box(gobj, pl, priv.open === pl.id));
+    }
+    out.push(["div", {class: "VID_SRCLIST VID_LISTBOXES"}, boxes]);
+    return out;
+}
+
+function list_box(gobj, pl, open)
+{
+    let priv = gobj.priv;
+    let r = resolve(pl.id);
+    let kw = {id: pl.id};
+    const send = (ev) => () => gobj_send_event(gobj, ev, kw, gobj);
+    let del = "del:" + pl.id;
+    /*  Every button is named by the list too: "Play" on three boxes is
+        three buttons nobody can tell apart by ear. */
+    let tid = new_id();
+
+    const action = (cls, name_key, label_key, path, ev, extra) =>
+        ["button", {class: "VID_QBTN button " + cls, type: "button", ...named_for(name_key, tid),
+                    ...(extra || {})},
+            [ico(path, 15), ["span", {class: "VID_QLABEL", i18n: label_key}, t(label_key)]],
+            {click: send(ev)}];
+
+    let actions = [
+        action("is-primary VID_PLAYLIST", "play the list", "play", P.play, "EV_PLAY_LIST",
+            disabled_if(!r.tracks.length)),
+        action("VID_ADDLIST", "add all to queue", "add to queue", P.enqueue, "EV_ADD_LIST",
+            disabled_if(!r.tracks.length))
+    ];
+    if(priv.asking === del) {
+        actions.push(["button", {class: "VID_QBTN button is-danger VID_DEL_YES",
+                                 type: "button", i18n: "delete this list?",
+                                 ...named_for("delete this list?", tid)},
+            t("delete this list?"), {click: () => gobj_send_event(gobj, "EV_ASK_YES",
+                {what: del}, gobj)}]);
+        actions.push(["button", {class: "VID_QBTN button is-ghost", type: "button", i18n: "cancel",
+                                 ...named("cancel")},
+            t("cancel"), {click: () => gobj_send_event(gobj, "EV_ASK_NO", {}, gobj)}]);
+    } else {
+        actions.push(["button", {class: "VID_QBTN button is-ghost VID_DELLIST", type: "button",
+                                 ...named_for("delete this list", tid)},
+            [ico(P.trash, 15), ["span", {class: "VID_QLABEL", i18n: "delete"}, t("delete")]],
+            {click: () => gobj_send_event(gobj, "EV_ASK", {what: del}, gobj)}]);
+    }
+
+    let sub = count_pair(pl.count, "n videos");
+    if(r.missing) {
+        sub.push(["span", {class: "VID_SEP"}, "·"]);
+        sub.push(["span", {class: "VID_FACT is-warn"}, count_pair(r.missing, "n missing")]);
+    }
+
+    /*  THE NAME OPENS THE LIST, as everywhere else here a name opens
+        what it names; the chevron says so without having to guess. */
+    let box = ["article", {class: "VID_SRCROW VID_LISTBOX" + (open ? " is-open" : "")}, [
+        ["button", {class: "VID_LISTNAME", type: "button", "aria-expanded": open ? "true" : "false",
+                    ...named_for("show what is in it", tid)}, [
+            ["div", {class: "VID_T1"}, [
+                ["span", {class: "VID_LISTCHEV", "aria-hidden": "true"}, svg(CHEVRON, 18)],
+                ["span", {class: "VID_TITLE", id: tid}, pl.name]
             ]],
-            ["div", {class: "VID_ROWBTNS"}, buttons]
-        ]]);
-        if(open) {
-            /*  Every entry gets a row, the ones that do not resolve
-                too — greyed, from the title stored WITH the list. A
-                list shorter on screen than it is would be a lie. */
-            let on = sounding();
-            for(const it of entries_of(pl.id)) {
-                let v = find_video(it.source_id, it.path);
-                if(v) {
-                    out.push(video_row(gobj, v, {ctx: "list:" + pl.id,
-                                                  playing: !!on && on.uid === v.uid}));
-                } else {
-                    out.push(["div", {class: "VID_ROW VID_GONE"}, [
-                        ["div", {class: "VID_ROWBODY"}, [
-                            ["span", {class: "VID_NAME"}, it.title || it.path],
-                            ["span", {class: "VID_META", i18n: "not reachable now"}, t("not reachable now")]
-                        ]]
-                    ]]);
-                }
-            }
+            ["div", {class: "VID_T2"}, sub]
+        ], {click: send("EV_UNFOLD")}],
+        ["div", {class: "VID_SRCACTIONS"}, actions]
+    ]];
+    if(!open) {
+        return box;
+    }
+
+    /*  Every entry gets a row, the ones that do not resolve too —
+        greyed, from the title stored WITH the list. A list shorter on
+        screen than it is would be a lie. */
+    let rows = [];
+    let on = sounding();
+    for(const it of entries_of(pl.id)) {
+        let v = find_video(it.source_id, it.path);
+        if(v) {
+            rows.push(video_row(gobj, v, {ctx: "list:" + pl.id,
+                                          playing: !!on && on.uid === v.uid}));
+        } else {
+            rows.push(["div", {class: "VID_ROW VID_GONE"}, [
+                ["div", {class: "VID_ROWBODY"}, [
+                    ["span", {class: "VID_NAME"}, it.title || it.path],
+                    ["span", {class: "VID_META", i18n: "not reachable now"}, t("not reachable now")]
+                ]]
+            ]]);
         }
     }
-    return out;
+    return ["div", {class: "VID_LISTWRAP"}, [
+        box,
+        ["div", {class: "VID_LISTENTRIES"}, rows]
+    ]];
 }
 
 function section_ranked(gobj, ctx, by, title_key, empty_key)
@@ -611,9 +620,7 @@ function ac_ask_yes(gobj, event, kw, src)
         return -1;
     }
     gobj.priv.asking = "";
-    if(what === "places") {
-        clear_places();
-    } else if(what === "views") {
+    if(what === "views") {
         clear_counts("views");
     } else if(what.indexOf("del:") === 0) {
         remove_playlist(what.slice(4));

@@ -32,8 +32,10 @@ queue put together by hand. The player block does not scroll — only the queue
 does. **Whole queue** folds the player away when you are working on the queue
 rather than watching it.
 
-**Lists** — *Continue watching* (every video left half-way), the lists you
-saved, *Loved* and *Most watched*.
+**Lists** — the lists you saved, each in its own box (as in yunomúsica: the
+name unfolds it; *Play*, *Add to queue*, *Delete* beside it), then *Loved* and
+*Most watched*. There is no *Continue watching*: every video, and every saved
+list, already comes back where it was left.
 
 **Library** — three ways of looking at the same videos, with a search box:
 
@@ -83,11 +85,11 @@ kill costs ten seconds at most. `tests/resume.mjs` reads the place off the disk
 **while the first page is still running**, where only the periodic write can
 have put it.
 
-*Continue watching* is built from those places and is **sorted by name**, not
-by when. Sorting by "most recent" would take a record of *when* each thing was
-watched, and this app keeps none: a count and a place per video, shown on the
-video, erasable from its card — the rule yunomúsica wrote after deleting its own
-listening history.
+Those places are shown on the video itself (the bar under its row), not in a
+list of their own: a *Continue watching* list would have to be sorted by when,
+and this app keeps no record of *when* anything was watched — a count and a
+place per video, shown on the video, erasable from its card — the rule
+yunomúsica wrote after deleting its own listening history.
 
 ## One element, that moves
 
@@ -292,7 +294,7 @@ revalidate `index.html` on every request, so a redeploy is picked up at once.
 | `src/c_yunovideo.js` | root service: shell, strip (mini-player with the video), scan bar, theme, palette, language, keyboard, boot |
 | `src/c_vid_deck.js` | **Player**: stage, scrub bar, transport, the queue |
 | `src/c_vid_library.js` | **Library**: folders, series, all, search |
-| `src/c_vid_lists.js` | **Lists**: continue watching, saved lists, loved, most watched |
+| `src/c_vid_lists.js` | **Lists**: saved lists (boxed), loved, most watched |
 | `src/c_vid_sources.js` | **Sources**: authorised folders, permissions, rescan, diagnostics |
 | `src/rows.js` | the row of one video, the same on every screen |
 | `src/video_card.js` | the card a name opens |
