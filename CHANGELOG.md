@@ -4,6 +4,15 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.26 — 2026-11-12
+
+- **The queue is always in reach at 100% zoom.** On a short screen (a
+  laptop's window, a phone) the picture and the transport took nearly all of
+  the Player screen and the queue, which scrolled only inside what was left,
+  got sixteen pixels: not one row could be reached. The queue now keeps a
+  floor of its own (20rem) and the whole screen scrolls instead; where there is
+  room for both, nothing changes. New test: `queuereach`.
+
 ## 1.0.25 — 2026-11-12
 
 - Tests: the phone-sized ones (`fitmobile`) hung in `setFiles`. Chrome

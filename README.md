@@ -28,9 +28,11 @@ transport — previous, −10 s, play, +10 s, next, then speed, subtitles, mute,
 picture-in-picture and fullscreen. Under the picture, the title and what the
 name said about it. Then **the queue**: what you put on it, in the order you
 want; whether it is a **saved list** (and whether you changed it since) or a
-queue put together by hand. The player block does not scroll — only the queue
-does. **Whole queue** folds the player away when you are working on the queue
-rather than watching it.
+queue put together by hand. While the screen has room for both, the player
+block does not scroll — only the queue does. On a short screen (a laptop, a
+phone) the queue keeps a few rows' worth of height and the whole screen scrolls
+instead, so the queue is always in reach at 100% zoom. **Whole queue** folds the
+player away when you are working on the queue rather than watching it.
 
 **Lists** — the lists you saved, each in its own box (as in yunomúsica: the
 name unfolds it; *Play*, *Add to queue*, *Delete* beside it), then *Loved* and

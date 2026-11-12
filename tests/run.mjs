@@ -43,6 +43,7 @@ const TESTS = [
     {name: "templist",  what: "playing from the library leaves the queue alone"},
     {name: "names_dom", what: "no control without title and aria-label, two languages"},
     {name: "fitmobile", what: "nothing runs off a phone's width"},
+    {name: "queuereach", what: "the queue is in reach on a short screen"},
     {name: "offline",   what: "no network: it boots and plays from the device"},
     {name: "dialogs",   what: "dialogs and questions answer through the machine"},
     {name: "trace",     what: "outside the machine is no blind spot: the stores trace"},

@@ -872,8 +872,16 @@
 /*======================================================================
  *      The player: stage, scrub bar, transport
  *====================================================================*/
+/*  The queue keeps a floor of its own. While the screen has room for
+ *  the picture AND a queue worth the name, nothing changes: the player
+ *  stays put and only the list scrolls. When it has not (a laptop's
+ *  short window, a phone), the list used to get what was left — a
+ *  sliver, sixteen pixels of it, and no way to reach a single row at
+ *  100% zoom. Now the queue keeps its floor and the whole screen
+ *  scrolls instead: down to the queue, back up to the controls. */
 .VID_DECK {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 .VID_DECKCARD {
     flex: none;
@@ -1156,7 +1164,7 @@
  *====================================================================*/
 .VID_QUEUEBOX {
     flex: 1;
-    min-height: 0;
+    min-height: min(20rem, 100cqh);
     width: 100%;
     max-width: 1100px;
     margin: 0 auto;

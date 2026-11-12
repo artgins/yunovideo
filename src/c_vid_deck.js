@@ -7,9 +7,11 @@
  *      The top of the screen is the player block: the stage the one
  *      <video> element is docked into, the scrub bar, and the
  *      transport. It is built ONCE and updated in place — the element
- *      inside it must never be thrown away with a repaint — and it does
- *      not scroll: only the queue does. What is playing is never
- *      something you scroll back up to find.
+ *      inside it must never be thrown away with a repaint. While the
+ *      screen has room for it and a queue, it does not scroll: only the
+ *      queue does. On a short screen the queue keeps a floor of its own
+ *      and the whole screen scrolls (video.css, .VID_DECK) — a queue
+ *      out of reach is worse than a player one flick away.
  *
  *      Under the picture: the title, what the name said about it, and,
  *      when the video was RESUMED, the second it came back at with a
