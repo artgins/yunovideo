@@ -97,11 +97,23 @@ async function route(page, hash, wait = 700)
 async function add_source(page, files, which = 1, settle = 3000)
 {
     await route(page, "#/sources", 600);
+    /*  Chrome will not open a file dialog in a window under 400x300:
+        it fires `cancel` on the input and says so on the console, and
+        setFiles then waits for an `input` event that never comes. A
+        phone-sized test widens the window for the pick only. */
+    const vp = page.viewportSize();
+    const small = vp && (vp.width < 400 || vp.height < 300);
+    if(small) {
+        await page.setViewportSize({width: Math.max(vp.width, 400), height: Math.max(vp.height, 300)});
+    }
     const [chooser] = await Promise.all([
         page.waitForEvent("filechooser"),
         page.click(which === 1 ? ".VID_ADDDIR" : ".VID_ADDFILES")
     ]);
     await chooser.setFiles(files);
+    if(small) {
+        await page.setViewportSize(vp);
+    }
     await page.waitForTimeout(settle);
 }
 

@@ -4,6 +4,13 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.25 — 2026-11-12
+
+- Tests: the phone-sized ones (`fitmobile`) hung in `setFiles`. Chrome
+  does not open a file dialog in a window under 400x300: it cancels the
+  input and logs that it suppressed the chooser. `add_source` widens the
+  window to 400 for the pick and puts it back. No change to the app.
+
 ## 1.0.24 — 2026-11-12
 
 - **Adding a source no longer cues it on the deck**, not even an empty one:
