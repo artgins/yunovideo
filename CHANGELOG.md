@@ -4,6 +4,13 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.27 — 2026-11-13
+
+- gobj-ui `^7.31.0` (its peer floors: i18next 27, vanilla-jsoneditor 3.13.1), gobj-js
+  `^7.30.0`, `i18next` `^27.1.1`, and the tooling (vite 8.3.8, playwright 1.65). The lockfile
+  carries `fast-uri` 3.1.9, out of its advisory. i18next 27 changes defaults this app does not
+  rely on (it sets `fallbackLng: "en"`). No change of code. Tests green, deployed, clean console.
+
 ## 1.0.26 — 2026-11-12
 
 - **The queue is always in reach at 100% zoom.** On a short screen (a
