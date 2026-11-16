@@ -4,6 +4,13 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.31 — 2026-11-16
+
+- gobj-ui `^7.31.5`: the JSON graph (`C_YUI_JSON_GRAPH`) lights an edge on a click (the
+  line, its two cards and the row of the key it leaves from), has a minimap from 10
+  cards and zooms out to 2% (10% before, where a large document did not fit). No change
+  of code. Tests green, deployed.
+
 ## 1.0.30 — 2026-11-16
 
 - gobj-ui `^7.31.4`: the treedb graph draws its edges at their width before 7.31.3 (1.6px,
