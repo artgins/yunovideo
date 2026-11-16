@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.28 — 2026-11-16
+
+- gobj-ui `^7.31.2`: in the treedb graph and the schema graph a click on an edge lights it
+  and its two ends; the schema graph always has a minimap, and the treedb graph shows one
+  from 10 nodes. No change of code. Tests green, deployed.
+
 ## 1.0.27 — 2026-11-13
 
 - gobj-ui `^7.31.0` (its peer floors: i18next 27, vanilla-jsoneditor 3.13.1), gobj-js
