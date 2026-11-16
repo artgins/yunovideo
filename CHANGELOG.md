@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.29 — 2026-11-16
+
+- gobj-ui `^7.31.3`: in the schema graph and the treedb graph the edges are drawn wider
+  (2px; 4px lit) and take a click some 7px either side of the line, where they were hard
+  to hit. No change of code. Tests green, deployed.
+
 ## 1.0.28 — 2026-11-16
 
 - gobj-ui `^7.31.2`: in the treedb graph and the schema graph a click on an edge lights it
