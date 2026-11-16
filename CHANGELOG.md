@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.30 — 2026-11-16
+
+- gobj-ui `^7.31.4`: the treedb graph draws its edges at their width before 7.31.3 (1.6px,
+  2px for a tree link) and keeps only the wider click area, not drawn. No change of code.
+  Tests green, deployed.
+
 ## 1.0.29 — 2026-11-16
 
 - gobj-ui `^7.31.3`: in the schema graph and the treedb graph the edges are drawn wider
