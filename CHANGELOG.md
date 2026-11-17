@@ -4,6 +4,13 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.32 — 2026-11-17
+
+- gobj-ui `^7.31.6`: the treedb admin views show each topic by its own name, untranslated
+  (tab, card, info title, the linked-topic choice dialog, the parent-filter chip). Those five
+  places translated it and the rest did not, so a `places` shown as "sitios" read as the topic
+  `sites`. No change of code. Tests green, deployed.
+
 ## 1.0.31 — 2026-11-16
 
 - gobj-ui `^7.31.5`: the JSON graph (`C_YUI_JSON_GRAPH`) lights an edge on a click (the
