@@ -5,13 +5,13 @@
 #   A step that fails stops the deploy: the backup is the rollback point,
 #   and without `set -e` a failed one would go on to the rsync.
 #
-#   The site is served from wattyzer; HOST can be overridden for a test
-#   host (HOST=otherhost ./deploy_yunovideo.sh).
+#   HOST is the public FQDN of the site, never an internal node name; it
+#   can be overridden for a test host (HOST=otherhost ./deploy_yunovideo.sh).
 #
 set -eu
 
 SITE="yunovideo.com"
-HOST="${HOST:-wattyzer}"
+HOST="${HOST:-$SITE}"
 
 if [ ! -f ./dist/index.html ]; then
     echo "no ./dist/index.html: run 'npm run build' first" >&2
