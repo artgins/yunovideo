@@ -4,6 +4,11 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.33 — 2026-11-20
+
+- gobj-ui `^7.31.7`: new icon `yi-qrcode` (the QR code of Font Awesome Free). No change
+  of code. Tests green, deployed.
+
 ## 1.0.32 — 2026-11-17
 
 - gobj-ui `^7.31.6`: the treedb admin views show each topic by its own name, untranslated
