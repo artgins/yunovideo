@@ -379,20 +379,13 @@ async function repick(id)
     }
 
     /*  Another folder would leave every video unreachable: the stored
-        paths start with the folder's own name. The name must match,
-        and if the old handle can still compare itself, it must say
-        "same". If it does not answer (the same browser that does not
-        answer the permission check), the name decides. */
-    let same = (handle.name || "") === source.name;
-    if(same && source.handle && typeof source.handle.isSameEntry === "function") {
-        try {
-            same = await bounded(source.handle.isSameEntry(handle), PERM_WAIT, "isSameEntry");
-        } catch(e) {
-            log_warning(`sources_store: ${(e && e.message) || e}; the name decides`);
-        }
-    }
-    diag("repick", {same: same});
-    if(!same) {
+        paths start with the folder's own name. So the name decides.
+        isSameEntry is asked too, but only for the journal: on the
+        phone where this is needed the old handle may not answer, or
+        may answer "no" for the very folder it points to, and "You
+        chose Videos, not Videos" would be no answer at all. */
+    if((handle.name || "") !== source.name) {
+        diag("repick", {same_name: false});
         S.notice = {
             kind: "not the same folder",
             name: handle.name || "—",
@@ -402,9 +395,26 @@ async function repick(id)
         emit();
         return false;
     }
+    await rebind(source, handle, "repick");
+    return true;
+}
 
+/*  The folder just chosen IS this source: its handle takes the place of
+    the stored one, with the read permission it came with. */
+async function rebind(source, handle, why, same)
+{
+    /*  For the journal only, and not waited on: the old handle may take
+        its 4 s to answer, and the video must not. */
+    let old = source.handle;
+    if(same === undefined) {
+        same_entry_bounded(old, handle).then(function(v) {
+            diag(why, {same_name: true, same_entry: v});
+        });
+    } else {
+        diag(why, {same_name: true, same_entry: same});
+    }
     source.handle = handle;
-    let r = rt(id);
+    let r = rt(source.id);
     r.permission = "granted";
     r.perm_hang = false;
     S.notice = null;
@@ -414,7 +424,6 @@ async function repick(id)
         read, and now it can. A read that is refused after all puts the
         folder back on the bar (resolve_track_file). */
     reload_current();
-    return true;
 }
 
 
@@ -889,28 +898,43 @@ function files_index()
     down to b, or null when b is not below a. It returns the
     empty array for the same entry — which is truthy — so
     isSameEntry has to be asked first. */
+/*  Both ask a STORED handle, and on the phone of 2026-11-21 a stored
+    handle did not answer its permission calls. Without a limit, adding
+    a folder waited for ever after the user had said "Allow". No answer
+    counts as "no opinion" (false) here; same_entry_bounded() tells it
+    apart (null) for the callers that need to know. */
 async function is_inside(parent, child)
 {
     if(!parent || !child || typeof parent.resolve !== "function") {
         return false;
     }
     try {
-        return !!(await parent.resolve(child));
+        return !!(await bounded(parent.resolve(child), PERM_WAIT, "resolve"));
     } catch(e) {
+        if(e && e.name === "TimeoutError") {
+            log_warning(`sources_store: ${e.message}`);
+        }
         return false;               // an engine without it: no opinion
+    }
+}
+
+/*  true, false, or null when the browser does not answer or fails. */
+async function same_entry_bounded(a, b)
+{
+    if(!a || !b || typeof a.isSameEntry !== "function") {
+        return null;
+    }
+    try {
+        return !!(await bounded(a.isSameEntry(b), PERM_WAIT, "isSameEntry"));
+    } catch(e) {
+        log_warning(`sources_store: isSameEntry: ${(e && e.message) || e}`);
+        return null;
     }
 }
 
 async function same_entry(a, b)
 {
-    if(!a || !b || typeof a.isSameEntry !== "function") {
-        return false;
-    }
-    try {
-        return !!(await a.isSameEntry(b));
-    } catch(e) {
-        return false;
-    }
+    return (await same_entry_bounded(a, b)) === true;
 }
 
 /*  What this folder collides with, or null. */
@@ -1006,6 +1030,21 @@ async function add_dir_handle(handle)
 {
     S.notice = null;
     S.pending = null;
+
+    /*  A folder that is waiting for its permission, picked again with
+        "Add folder": that is the user getting the permission back, not
+        a new source. Same rule as "Choose again" (repick): the name
+        decides, unless the old handle says outright that it is another
+        folder. Added as new, it would be every video twice. */
+    let back = S.sources.find((s) => s.kind === "dir" && s.name === (handle.name || "") &&
+                                     rt(s.id).permission !== "granted");
+    if(back) {
+        let same = await same_entry_bounded(back.handle, handle);
+        if(same !== false) {
+            await rebind(back, handle, "re-added", same);
+            return back.id;
+        }
+    }
 
     let clash = await dir_clash(handle);
     if(clash && clash.how !== "contains") {

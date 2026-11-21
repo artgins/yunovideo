@@ -54,6 +54,7 @@ import {
 } from "./video_store.js";
 import {
     subscribe_sources, pending_authorisation, authorize_all, repick,
+    source_notice, dismiss_notice,
 } from "./sources_store.js";
 import {save_queue_as} from "./playlists_store.js";
 import {subscribe_stats, watched_fraction} from "./stats_store.js";
@@ -559,6 +560,18 @@ function paint_bars(gobj)
         One folder per tap, the one named, because the picker returns
         one folder. */
     let hung = pending.find((p) => p.hang);
+    /*  "Choose again" is pressed here, so a wrong folder is said here
+        too. Shown only in Sources, from the player it looked like the
+        button did nothing. */
+    let note = source_notice();
+    if(note && note.kind === "not the same folder") {
+        $b.appendChild(bar("VID_WRONGBAR",
+            ["span", {}, t("not the same folder", {name: note.name, other: note.other})],
+            null,
+            [["button", {class: "VID_QBTN button is-ghost", type: "button",
+                         i18n: "understood", ...named("understood")}, t("understood"),
+                {click: send("EV_DISMISS_NOTICE")}]]));
+    }
     if(hung) {
         $b.appendChild(bar("VID_PENDBAR",
             ["span", {i18n: "browser did not answer"}, t("browser did not answer")],
@@ -1014,6 +1027,13 @@ function ac_repick(gobj, event, kw, src)
     return 0;
 }
 
+/*  The wrong-folder bar, put away. */
+function ac_dismiss_notice(gobj, event, kw, src)
+{
+    dismiss_notice();
+    return 0;
+}
+
 /*  The new build is loaded by a reload, and the reload is ours: it waits
     for the deck to be written, for at most a second and a half. */
 function ac_reload(gobj, event, kw, src)
@@ -1109,6 +1129,7 @@ function create_gclass(gclass_name)
         ["EV_CLEAR_NOTICE",     ac_clear_notice,    null],
         ["EV_AUTHORIZE",        ac_authorize,       null],
         ["EV_REPICK",           ac_repick,          null],
+        ["EV_DISMISS_NOTICE",   ac_dismiss_notice,  null],
         ["EV_RELOAD",           ac_reload,          null],
         ["EV_RELOAD_NOW",       ac_reload_now,      null],
         ["EV_INSTALL",          ac_install,         null],
@@ -1168,6 +1189,7 @@ function create_gclass(gclass_name)
         ["EV_CLEAR_NOTICE",     0],
         ["EV_AUTHORIZE",        0],
         ["EV_REPICK",           0],
+        ["EV_DISMISS_NOTICE",   0],
         ["EV_RELOAD",           0],
         ["EV_RELOAD_NOW",       0],
         ["EV_INSTALL",          0],

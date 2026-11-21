@@ -26,8 +26,13 @@
  *      does nothing.
  *
  *      Act 3: "Choose again" from Sources, and the wrong folder chosen.
- *      Nothing changes and Sources says which folder to choose. Then
- *      the right one.
+ *      Nothing changes, and Sources and the player say which folder to
+ *      choose. Then the right one.
+ *
+ *      Act 4: "Add folder" with the folder that is waiting. It takes
+ *      the place of the waiting one; nothing is added twice. In "hang"
+ *      mode isSameEntry() and resolve() do not answer either, which is
+ *      the comparison "Add folder" makes before it adds anything.
  *
  *      The handles are real (origin private file system); only the
  *      permission calls and the picker are replaced. Same test as
@@ -53,7 +58,7 @@ const check = (label, ok) => {
 /*  What the permission calls do, chosen per launch through
     sessionStorage["perm"]:
         (unset)  the browser's own answer
-        "hang"   queryPermission() never settles
+        "hang"   queryPermission(), isSameEntry() and resolve() never settle
         "liar"   queryPermission() says "granted", reads fail NotAllowedError
     requestPermission() always answers "granted" and puts the browser's
     own behaviour back, which is what a user's "Allow" does. */
@@ -70,6 +75,13 @@ function folder_init()
         }
         return real_query.apply(this, args);
     };
+    for(const [proto, name] of [[FileSystemHandle.prototype, "isSameEntry"],
+                                [FileSystemDirectoryHandle.prototype, "resolve"]]) {
+        const real = proto[name];
+        proto[name] = function(...args) {
+            return mode() === "hang" ? new Promise(() => {}) : real.apply(this, args);
+        };
+    }
     FileSystemHandle.prototype.requestPermission = async function() {
         sessionStorage.removeItem("perm");
         return "granted";
@@ -249,11 +261,36 @@ check(`dice qué carpeta hay que elegir: “${note.slice(0, 70)}”`, note.inclu
 check("y la carpeta sigue esperando", await page.locator(".C_VID_SOURCES .VID_SRCROW .VID_REPICK").count() === 1);
 rows = await source_rows(page);
 check(`no se ha añadido ninguna carpeta: ${rows.map((r) => r.name).join(", ")}`, rows.length === 1);
+await route(page, "#/player", 600);
+check("el reproductor también lo dice", await page.locator(".VID_WRONGBAR").count() === 1);
+await route(page, "#/sources", 700);
 
 await page.evaluate(() => { window.__pick = "Mis vídeos"; });
 await page.click(".C_VID_SOURCES .VID_SRCROW .VID_REPICK");
 await page.waitForTimeout(2500);
 check("con la buena, deja de esperar", await page.locator(".C_VID_SOURCES .VID_SRCROW .VID_REPICK").count() === 0);
+await route(page, "#/player", 1500);
+check("y el vídeo se carga", await loaded(page));
+
+
+                    /***************************
+                     *  Act 4: "Add folder" with the waiting folder
+                     ***************************/
+console.log("4. «Añadir carpeta» con la carpeta que espera");
+await page.evaluate(() => sessionStorage.setItem("perm", "hang"));
+await page.reload({waitUntil: "networkidle"});
+await page.waitForTimeout(6000);
+await route(page, "#/sources", 700);
+check("la carpeta espera", await page.locator(".C_VID_SOURCES .VID_SRCROW .VID_REPICK").count() === 1);
+await page.evaluate(() => { window.__pick = "Mis vídeos"; });
+await page.click(".VID_ADDDIR");
+/*  isSameEntry does not answer: 4 s, then the name decides. */
+await page.waitForTimeout(7000);
+rows = await source_rows(page);
+check(`sigue habiendo una carpeta: ${rows.map((r) => r.name + " " + r.count).join(", ")}`,
+      rows.length === 1 && rows[0].count === 2);
+check("y ya no espera",
+      await page.locator(".C_VID_SOURCES .VID_SRCROW .VID_REPICK, .C_VID_SOURCES .VID_SRCROW .VID_AUTH").count() === 0);
 await route(page, "#/player", 1500);
 check("y el vídeo se carga", await loaded(page));
 
