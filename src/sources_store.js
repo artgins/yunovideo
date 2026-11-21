@@ -215,6 +215,36 @@ function new_id()
 
 
 /***************************************************************
+ *      A browser call that never answers
+ *
+ *  Every await on the browser in here assumed an answer would
+ *  come, yes or no. On 2026-11-21 a phone came up with no
+ *  folders in Sources, no "authorise" bar and an empty
+ *  Diagnostics panel, in this app and in yunomúsica: that is
+ *  what a queryPermission() that never settles looks like.
+ *  The start-up waited for it before it showed the folders,
+ *  and Diagnostics showed nothing until all of its checks had
+ *  answered. So the calls that touch a folder get a time
+ *  limit, and a call over it is named, not waited on.
+ ***************************************************************/
+const PERM_WAIT = 4000;         // queryPermission, storage.persisted/estimate
+const FILE_WAIT = 10000;        // walk a stored path down to its File
+
+function bounded(promise, ms, what)
+{
+    let timer = null;
+    let limit = new Promise(function(resolve, reject) {
+        timer = setTimeout(function() {
+            let e = new Error(`${what}: no answer in ${ms / 1000} s`);
+            e.name = "TimeoutError";
+            reject(e);
+        }, ms);
+    });
+    return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+}
+
+
+/***************************************************************
  *      Permission (only "dir" sources have one)
  ***************************************************************/
 async function query_permission(source)
@@ -226,8 +256,20 @@ async function query_permission(source)
         return "granted";
     }
     try {
-        return await source.handle.queryPermission({mode: "read"});
+        let state = await bounded(source.handle.queryPermission({mode: "read"}),
+                                  PERM_WAIT, "queryPermission");
+        rt(source.id).perm_hang = false;
+        return state;
     } catch(e) {
+        if(e && e.name === "TimeoutError") {
+            /*  No answer is not a yes. "prompt" puts the folder on the
+                bar, and the bar's button asks with requestPermission,
+                which is a different call and may still answer. */
+            rt(source.id).perm_hang = true;
+            diag("perm_hang", {ms: PERM_WAIT});
+            log_warning(`sources_store: queryPermission did not answer on ${source.name} in ${PERM_WAIT} ms`);
+            return "prompt";
+        }
         log_warning(`sources_store: queryPermission failed on ${source.name}: ${(e && e.name) || e}`);
         return "denied";
     }
@@ -278,6 +320,9 @@ async function authorize(id)
         log_warning(`sources_store: requestPermission failed: ${(e && e.name) || e}`);
         state = "denied";
     }
+    /*  In the journal, so the Session log says what the browser
+        answered to the button, beside what it answered at start up. */
+    diag("authorise", {state: state});
     rt(id).permission = state;
     emit();
     /*  The deck was restored before this permission existed, so the track
@@ -312,11 +357,19 @@ async function load_sources()
         S.blocked = idb_blocked();
         emit();
     });
-    S.durable = await storage_persisted();
+    S.durable = await bounded(storage_persisted(), PERM_WAIT, "storage.persisted")
+        .catch(function(e) {
+            log_warning(`sources_store: ${(e && e.message) || e}`);
+            return null;            // "unknown", as when the browser will not say
+        });
     let rows = await idb_all(STORE_SOURCES);
     S.sources = (rows || []).sort((a, b) => (a.added || 0) - (b.added || 0));
-    for(const s of S.sources) {
+    /*  All at once: each one is bounded, and one folder that gets no
+        answer must not hold the others back. */
+    await Promise.all(S.sources.map(async function(s) {
         rt(s.id).permission = await query_permission(s);
+    }));
+    for(const s of S.sources) {
         if(s.kind === "files" && !s.files) {
             let chunks = await idb_get_prefix(STORE_FILES, s.id + ":");
             s.files = [];
@@ -374,6 +427,7 @@ async function load_sources()
         dirs: S.sources.filter((x) => x.kind === "dir").length,
         filesets: S.sources.filter((x) => x.kind === "files").length,
         pending: pending_authorisation().length,
+        no_answer: S.sources.filter((x) => rt(x.id).perm_hang).length,
         idb: !!S.persistent,
         durable: S.durable === null ? "unknown" : S.durable
     });
@@ -418,12 +472,29 @@ async function resolve_track_file(track)
     if(!segs.length) {
         return null;
     }
-    let dir = source.handle;
-    for(let i = 0; i < segs.length - 1; i++) {
-        dir = await dir.getDirectoryHandle(segs[i]);
+    const walk = async function() {
+        let dir = source.handle;
+        for(let i = 0; i < segs.length - 1; i++) {
+            dir = await dir.getDirectoryHandle(segs[i]);
+        }
+        let fh = await dir.getFileHandle(segs[segs.length - 1]);
+        return await fh.getFile();
+    };
+    try {
+        return await bounded(walk(), FILE_WAIT, "getFile");
+    } catch(e) {
+        /*  The browser said "granted" at start up and refuses the read
+            now. Without this the folder was never on the bar (it was
+            granted) and the refusal was not reported either (it is a
+            permission matter, and the bar is supposed to be up for
+            those): a player that did nothing. Put it on the bar. */
+        if(e && e.name === "NotAllowedError" && rt(source.id).permission === "granted") {
+            rt(source.id).permission = "prompt";
+            diag("perm_lost", {});
+            emit();
+        }
+        throw e;
     }
-    let fh = await dir.getFileHandle(segs[segs.length - 1]);
-    return await fh.getFile();
 }
 
 set_file_resolver(resolve_track_file);
@@ -561,10 +632,18 @@ function is_durable()
  *  can no longer be opened looks exactly like a permission
  *  problem, and is not one.
  ***************************************************************/
-async function diagnose()
+async function diagnose(on_progress)
 {
     let lines = [];
-    const add = (k, v) => lines.push({k: k, v: String(v)});
+    /*  Each line goes on screen as soon as it is known. Shown all at
+        once at the end, one check that never answered left the panel
+        empty, which says nothing about which check it was. */
+    const add = function(k, v) {
+        lines.push({k: k, v: String(v)});
+        if(typeof on_progress === "function") {
+            on_progress(lines);
+        }
+    };
 
     add("version", __APP_VERSION__ + "  built " + __BUILD_STAMP__ +
         (update_stale() ? "   *** OUTDATED, deployed: " + update_latest() + " ***" : ""));
@@ -580,13 +659,19 @@ async function diagnose()
     }
     add("display-mode", mode);
     add("showDirectoryPicker", fsa_supported() ? "yes" : "NO");
+    /*  The two calls the "authorise" bar lives on. Without them a
+        folder is taken as granted, whatever the browser does later. */
+    let fsh = (typeof FileSystemHandle !== "undefined") ? FileSystemHandle.prototype : null;
+    add("handle permissions",
+        (fsh && typeof fsh.queryPermission === "function" ? "query yes" : "query NO") + ", " +
+        (fsh && typeof fsh.requestPermission === "function" ? "request yes" : "request NO"));
     add("indexedDB", S.persistent ? "yes" : (S.blocked ? "NO (blocked by another tab)" : "NO"));
     add("storage.persisted", S.durable === null ? "unknown" : S.durable);
     add("last write", S.write_failed.size
         ? ("FAILED for " + S.write_failed.size + " source(s)") : "ok");
     if(typeof navigator !== "undefined" && navigator.storage && navigator.storage.estimate) {
         try {
-            let e = await navigator.storage.estimate();
+            let e = await bounded(navigator.storage.estimate(), PERM_WAIT, "storage.estimate");
             add("storage used", Math.round((e.usage || 0) / 1048576) + " MiB / " +
                 Math.round((e.quota || 0) / 1048576) + " MiB");
         } catch(err) {
@@ -610,7 +695,9 @@ async function diagnose()
         let perm = await query_permission(s);
         let n = (s.files && s.files.length) || 0;
         add(`source "${s.name}"`,
-            `kind=${s.kind} permission=${perm} walked=${s.seen || "?"} ` +
+            `kind=${s.kind} permission=${perm}` +
+            (r.perm_hang ? ` (queryPermission: no answer in ${PERM_WAIT / 1000} s)` : "") +
+            ` walked=${s.seen || "?"} ` +
             `videos=${s.count || 0} stored=${n}` +
             (r.error ? ` error=${r.error}` : ""));
 
@@ -640,27 +727,30 @@ async function diagnose()
         /*  The real question: can a stored reference still be READ? */
         let probe = "n/a";
         try {
-            let f = null;
-            if(s.kind === "dir") {
-                if(perm === "granted") {
+            probe = await bounded((async function() {
+                let f = null;
+                if(s.kind === "dir") {
+                    if(perm !== "granted") {
+                        return "not authorised";
+                    }
                     for await (const entry of s.handle.values()) {
                         if(entry.kind === "file") {
                             f = await entry.getFile();
                             break;
                         }
                     }
-                } else {
-                    probe = "not authorised";
+                } else if(s.files && s.files.length) {
+                    f = s.files[0];
                 }
-            } else if(s.files && s.files.length) {
-                f = s.files[0];
-            }
-            if(f) {
+                if(!f) {
+                    return "n/a";
+                }
                 await f.slice(0, 1).arrayBuffer();
-                probe = "YES";
-            }
+                return "YES";
+            })(), FILE_WAIT, "read");
         } catch(err) {
-            probe = "NO (" + ((err && err.name) || err) + ")";
+            probe = "NO (" + ((err && err.name === "TimeoutError")
+                ? err.message : ((err && err.name) || err)) + ")";
         }
         add("   readable", probe);
     }

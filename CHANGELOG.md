@@ -4,6 +4,25 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.34 — 2026-11-21
+
+- A folder whose permission check gets no answer no longer stops the app. On a phone,
+  Sources showed no folders, the "authorise" bar did not come up, and Diagnostics stayed
+  empty. yunomúsica did the same. That is what a `queryPermission()` that never settles
+  does: the start-up waited for it, and Diagnostics waited for it too. The phone does not
+  confirm this cause yet. Each browser call that touches a folder now has a time limit: 4 s
+  for `queryPermission`, `storage.persisted` and `storage.estimate`, and 10 s to get a file.
+  If `queryPermission` does not answer, the folder goes on the "authorise" bar. Its button
+  asks with `requestPermission`, which is a different call. The app now checks all folders
+  at the same time, so one folder cannot hold back the others.
+- If the browser says "granted" and then refuses the read (`NotAllowedError`), the folder
+  goes on the "authorise" bar. Before, the player did nothing and showed no message.
+- Diagnostics shows each line as soon as it has it, so a slow check is on the screen by
+  name. A new line, `handle permissions`, tells if `queryPermission` and
+  `requestPermission` exist. The source line tells when `queryPermission` did not answer.
+  The Session log records `perm_hang`, `perm_lost` and the answer to the "authorise" button.
+- New test `permhang`, the same as in yunomúsica 2.37.29.
+
 ## 1.0.33 — 2026-11-20
 
 - gobj-ui `^7.31.7`: new icon `yi-qrcode` (the QR code of Font Awesome Free). No change

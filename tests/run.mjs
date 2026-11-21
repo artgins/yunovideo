@@ -40,6 +40,7 @@ const TESTS = [
     {name: "rescan",    what: "a rescan leaves the deck as it was, less what left"},
     {name: "e2e",       what: "the walk: add, library, play, queue, subtitles, reload"},
     {name: "resume",    what: "every video comes back where it was left, after a kill"},
+    {name: "permhang",  what: "a permission that never answers, or lies, ends on the authorise bar"},
     {name: "templist",  what: "playing from the library leaves the queue alone"},
     {name: "names_dom", what: "no control without title and aria-label, two languages"},
     {name: "fitmobile", what: "nothing runs off a phone's width"},

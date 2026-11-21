@@ -413,8 +413,12 @@ function build_diagnostics(gobj)
 
 function fill_diagnostics(gobj)
 {
-    diagnose().then(function(lines) {
-        gobj_send_event(gobj, "EV_DIAG_READY", {lines: lines}, gobj);
+    /*  Line by line, with "…" under the last one while the next check
+        runs: a check that takes long is then on screen, by name. */
+    diagnose(function(lines) {
+        gobj_send_event(gobj, "EV_DIAG_READY", {lines: lines.slice(), done: false}, gobj);
+    }).then(function(lines) {
+        gobj_send_event(gobj, "EV_DIAG_READY", {lines: lines, done: true}, gobj);
     }, function(e) {
         log_error(`${GCLASS_NAME}: the diagnostics failed: ${(e && e.stack) || e}`);
     });
@@ -557,11 +561,13 @@ function ac_diag_toggle(gobj, event, kw, src)
 }
 
 /*  The diagnostics were gathered (they read the disk and the storage,
-    which answer late). */
+    which answer late), or some of them: `done` is false while the next
+    check is still running. */
 function ac_diag_ready(gobj, event, kw, src)
 {
     let priv = gobj.priv;
-    priv.diag_text = (kw.lines || []).map((l) => l.k.padEnd(22) + " " + l.v).join("\n");
+    priv.diag_text = (kw.lines || []).map((l) => l.k.padEnd(22) + " " + l.v).join("\n") +
+        (kw.done === false ? "\n…" : "");
     let $b = priv.$content.querySelector(".VID_DIAG_BODY");
     if($b) {
         $b.textContent = priv.diag_text;
