@@ -193,6 +193,7 @@ function all_sources()
             rescannable: s.kind === "dir",
             seen: s.seen || 0,
             permission: r.permission,
+            perm_hang: !!r.perm_hang,     // the browser did not answer the permission check
             scanning: r.scanning,
             queued: r.queued,
             error: r.error,
@@ -285,7 +286,7 @@ function pending_authorisation()
 {
     return S.sources
         .filter((s) => s.kind === "dir" && rt(s.id).permission !== "granted")
-        .map((s) => ({id: s.id, name: s.name}));
+        .map((s) => ({id: s.id, name: s.name, hang: !!rt(s.id).perm_hang}));
 }
 
 /*  One gesture, every pending folder. The browser may refuse the second
@@ -314,11 +315,19 @@ async function authorize(id)
         return true;
     }
     let state;
+    /*  Not a time limit: this call waits for the user to answer a
+        dialog, and that takes as long as it takes. Only a line in the
+        journal, so a call that never answers leaves a trace. */
+    let slow = setTimeout(function() {
+        diag("authorise", {state: "no answer in 10 s"});
+    }, 10000);
     try {
         state = await source.handle.requestPermission({mode: "read"});
     } catch(e) {
         log_warning(`sources_store: requestPermission failed: ${(e && e.name) || e}`);
         state = "denied";
+    } finally {
+        clearTimeout(slow);
     }
     /*  In the journal, so the Session log says what the browser
         answered to the button, beside what it answered at start up. */
@@ -338,6 +347,74 @@ async function authorize(id)
         exactly the wait this design removes. Rescan stays available for
         when the folder itself has changed. */
     return state === "granted";
+}
+
+
+/*  CHOOSE THE FOLDER AGAIN.
+ *
+ *  For a browser that does not answer the permission calls on a stored
+ *  handle. Chrome 158 on Android, 2026-11-21: queryPermission never
+ *  settled, and requestPermission did nothing either. The folder picker
+ *  is another path and still works: the handle it returns comes with
+ *  its read permission. That handle takes the place of the stored one,
+ *  and the source keeps its id, its videos, the lists that hold them,
+ *  their counts and their places. Removing the folder and adding it
+ *  again would lose the counts and the places.
+ *
+ *  Must be called from a user gesture, or the browser refuses. */
+async function repick(id)
+{
+    let source = find(id);
+    if(!source || source.kind !== "dir" || !fsa_supported()) {
+        return false;
+    }
+    let handle;
+    try {
+        handle = await window.showDirectoryPicker({id: "videos", mode: "read", startIn: "videos"});
+    } catch(e) {
+        if(!e || e.name !== "AbortError") {
+            log_warning(`sources_store: the folder picker failed: ${(e && e.name) || e}`);
+        }
+        return false;               // the user closed the picker (AbortError)
+    }
+
+    /*  Another folder would leave every video unreachable: the stored
+        paths start with the folder's own name. The name must match,
+        and if the old handle can still compare itself, it must say
+        "same". If it does not answer (the same browser that does not
+        answer the permission check), the name decides. */
+    let same = (handle.name || "") === source.name;
+    if(same && source.handle && typeof source.handle.isSameEntry === "function") {
+        try {
+            same = await bounded(source.handle.isSameEntry(handle), PERM_WAIT, "isSameEntry");
+        } catch(e) {
+            log_warning(`sources_store: ${(e && e.message) || e}; the name decides`);
+        }
+    }
+    diag("repick", {same: same});
+    if(!same) {
+        S.notice = {
+            kind: "not the same folder",
+            name: handle.name || "—",
+            other: source.name,
+            pending: false,
+        };
+        emit();
+        return false;
+    }
+
+    source.handle = handle;
+    let r = rt(id);
+    r.permission = "granted";
+    r.perm_hang = false;
+    S.notice = null;
+    await persist(source);
+    emit();
+    /*  As after Authorise: the video the deck is sitting on could not be
+        read, and now it can. A read that is refused after all puts the
+        folder back on the bar (resolve_track_file). */
+    reload_current();
+    return true;
 }
 
 
@@ -1480,6 +1557,7 @@ const __t_add_files = traced("sources_store", "add_files", add_files);
 const __t_dismiss_notice = traced("sources_store", "dismiss_notice", dismiss_notice);
 const __t_accept_notice = traced("sources_store", "accept_notice", accept_notice);
 const __t_authorize = traced("sources_store", "authorize", authorize);
+const __t_repick = traced("sources_store", "repick", repick);
 const __t_authorize_all = traced("sources_store", "authorize_all", authorize_all);
 const __t_scan = traced("sources_store", "scan", scan);
 const __t_remove_source = traced("sources_store", "remove_source", remove_source);
@@ -1505,6 +1583,7 @@ export {
     __t_dismiss_notice as dismiss_notice,
     __t_accept_notice as accept_notice,
     __t_authorize as authorize,
+    __t_repick as repick,
     __t_authorize_all as authorize_all,
     pending_authorisation,
     __t_scan as scan,

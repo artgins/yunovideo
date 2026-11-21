@@ -92,6 +92,11 @@ const ar = {
         "stopping": "جارٍ الإيقاف…",
         "stopped": "تم الإيقاف قبل إنهاء المجلد",
         "waiting for permission": "في انتظار الإذن",
+        "choose again":         "اختيار مرة أخرى",
+        "browser did not answer":
+            "المتصفح لا يستجيب. اختر هذا المجلد مرة أخرى.",
+        "not the same folder":
+            "اخترت «{{name}}» وليس «{{other}}». لم يتغير شيء: اختر «{{other}}» مرة أخرى.",
         "permission denied": "تم رفض الإذن",
         "that file could not be read": "تعذّرت قراءة هذا الملف. ربما نُقل أو حُذف.",
         "could not be read": "تعذّرت القراءة",

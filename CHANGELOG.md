@@ -4,13 +4,33 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.35 — 2026-11-21
+
+- On the same phone, the "Authorise" button did nothing: Chrome 158 does not answer
+  `requestPermission` either. The folder picker still works, and the folder it returns
+  comes with its read permission. So when `queryPermission` gets no answer, the bar and the
+  folder's row in Sources offer "Choose again" in place of "Authorise". "Choose again" opens
+  the picker. If you choose the same folder, its new handle takes the place of the stored
+  one. The source keeps its videos, the lists that hold them, their counts and their
+  places. Removing the folder and adding it again loses the counts and the places.
+- The app accepts the chosen folder only if its name matches, and if the old handle says it
+  is the same entry (`isSameEntry`, 4 s limit, the name decides without an answer). A
+  different folder changes nothing, and Sources says which folder to choose.
+- The bar names one folder at a time, because the picker returns one folder.
+- `EV_REPICK` in `C_VID_SOURCES` and `C_VID_DECK`. The action runs inside the click, so the
+  picker still has the user gesture.
+- The Session log records `repick` and a `requestPermission` that gives no answer in 10 s.
+- `permhang` covers "Choose again" with the same folder and with a wrong one. Same change as
+  yunomúsica 2.37.30.
+
 ## 1.0.34 — 2026-11-21
 
 - A folder whose permission check gets no answer no longer stops the app. On a phone,
   Sources showed no folders, the "authorise" bar did not come up, and Diagnostics stayed
   empty. yunomúsica did the same. That is what a `queryPermission()` that never settles
-  does: the start-up waited for it, and Diagnostics waited for it too. The phone does not
-  confirm this cause yet. Each browser call that touches a folder now has a time limit: 4 s
+  does: the start-up waited for it, and Diagnostics waited for it too. Diagnostics on the
+  phone confirms the cause: Chrome 158 on Android 10, app installed, `queryPermission: no
+  answer in 4 s`, and `storage.persisted` answers. Each browser call that touches a folder now has a time limit: 4 s
   for `queryPermission`, `storage.persisted` and `storage.estimate`, and 10 s to get a file.
   If `queryPermission` does not answer, the folder goes on the "authorise" bar. Its button
   asks with `requestPermission`, which is a different call. The app now checks all folders

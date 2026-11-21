@@ -39,7 +39,7 @@ import {yui_shell_of, yui_shell_navigate} from "@yuneta/gobj-ui/src/c_yui_shell.
 import {
     subscribe_sources, all_sources, fsa_supported, is_persistent,
     is_durable, write_failed, is_blocked, diagnose,
-    add_dir, add_files, authorize, scan, remove_source,
+    add_dir, add_files, authorize, repick, scan, remove_source,
     source_notice, dismiss_notice, accept_notice,
 } from "./sources_store.js";
 import {
@@ -256,6 +256,7 @@ export const SOURCE_NOTICE_I18N_KEYS = [
     "files already added",
     "some were already in",
     "no videos here",
+    "not the same folder",
 ];
 
 function build_explainer()
@@ -335,7 +336,8 @@ function build_source_row(gobj, s)
     } else if(s.queued) {
         state = ["div", {class: "VID_SRCSTATE VID_DIM", i18n: "waiting its turn"}, t("waiting its turn")];
     } else if(needs_auth) {
-        let k = (s.permission === "denied") ? "permission denied" : "waiting for permission";
+        let k = s.perm_hang ? "browser did not answer"
+            : ((s.permission === "denied") ? "permission denied" : "waiting for permission");
         state = ["div", {class: "VID_SRCSTATE is-warn", i18n: k}, t(k)];
     } else if(s.error) {
         state = ["div", {class: "VID_SRCSTATE is-warn", i18n: /* i18n: SOURCE_STATE_I18N_KEYS */ s.error},
@@ -356,7 +358,12 @@ function build_source_row(gobj, s)
     if(!needs_auth && s.count) {
         actions.push(action("VID_LOOK", "look inside", P.look, "EV_LOOK_INSIDE"));
     }
-    if(needs_auth) {
+    if(needs_auth && s.perm_hang) {
+        /*  This browser did not answer the permission check, and on the
+            phone where that happened Authorise did nothing either. The
+            folder picker still works, so that is the action offered. */
+        actions.push(action("is-primary VID_REPICK", "choose again", P.folder, "EV_REPICK"));
+    } else if(needs_auth) {
         actions.push(action("is-primary VID_AUTH", "authorise", P.key, "EV_AUTHORIZE"));
     } else {
         if(s.rescannable) {
@@ -512,6 +519,14 @@ function ac_authorize(gobj, event, kw, src)
     return 0;
 }
 
+/*  Called inside the click (gobj_send_event is synchronous), so the
+    folder picker still has the user's gesture. */
+function ac_repick(gobj, event, kw, src)
+{
+    repick(kw.source_id);
+    return 0;
+}
+
 function ac_rescan(gobj, event, kw, src)
 {
     scan(kw.source_id, true);
@@ -627,6 +642,7 @@ function create_gclass(gclass_name)
         ["EV_DISMISS_NOTICE",   ac_dismiss_notice,  null],
         ["EV_LOOK_INSIDE",      ac_look_inside,     null],
         ["EV_AUTHORIZE",        ac_authorize,       null],
+        ["EV_REPICK",           ac_repick,          null],
         ["EV_RESCAN",           ac_rescan,          null],
         ["EV_ADD_SOURCE",       ac_add_source,      null],
         ["EV_DIAG_TOGGLE",      ac_diag_toggle,     null],
@@ -656,6 +672,7 @@ function create_gclass(gclass_name)
         ["EV_DISMISS_NOTICE",   0],
         ["EV_LOOK_INSIDE",      0],
         ["EV_AUTHORIZE",        0],
+        ["EV_REPICK",           0],
         ["EV_RESCAN",           0],
         ["EV_ADD_SOURCE",       0],
         ["EV_REMOVE_ASK",       0],

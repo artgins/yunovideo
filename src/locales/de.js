@@ -88,6 +88,11 @@ const de = {
         "stopping": "Wird gestoppt…",
         "stopped": "Vor dem Ende des Ordners gestoppt",
         "waiting for permission": "Warten auf Freigabe",
+        "choose again":         "Erneut wählen",
+        "browser did not answer":
+            "Der Browser antwortet nicht. Wähle diesen Ordner erneut.",
+        "not the same folder":
+            "Du hast „{{name}}“ gewählt, nicht „{{other}}“. Nichts wurde geändert: Wähle „{{other}}“ erneut.",
         "permission denied": "Freigabe verweigert",
         "that file could not be read": "Diese Datei konnte nicht gelesen werden. Vielleicht wurde sie verschoben oder gelöscht.",
         "could not be read": "Konnte nicht gelesen werden",

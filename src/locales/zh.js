@@ -87,6 +87,11 @@ const zh = {
         "stopping": "正在停止…",
         "stopped": "在读完该文件夹之前已停止",
         "waiting for permission": "等待授权",
+        "choose again":         "重新选择",
+        "browser did not answer":
+            "浏览器没有响应。请重新选择这个文件夹。",
+        "not the same folder":
+            "您选择的是“{{name}}”，而不是“{{other}}”。没有任何更改：请重新选择“{{other}}”。",
         "permission denied": "权限被拒绝",
         "that file could not be read": "无法读取该文件。它可能已被移动或删除。",
         "could not be read": "无法读取",

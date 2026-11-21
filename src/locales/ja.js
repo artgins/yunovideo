@@ -87,6 +87,11 @@ const ja = {
         "stopping": "停止しています…",
         "stopped": "フォルダーを読み終える前に停止しました",
         "waiting for permission": "許可を待っています",
+        "choose again":         "もう一度選ぶ",
+        "browser did not answer":
+            "ブラウザが応答しません。このフォルダをもう一度選んでください。",
+        "not the same folder":
+            "選んだのは「{{name}}」で、「{{other}}」ではありません。何も変わっていません。「{{other}}」をもう一度選んでください。",
         "permission denied": "許可されませんでした",
         "that file could not be read": "そのファイルを読めませんでした。移動または削除された可能性があります。",
         "could not be read": "読み込めませんでした",

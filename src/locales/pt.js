@@ -89,6 +89,11 @@ const pt = {
         "stopping": "A parar…",
         "stopped": "Parado antes de acabar a pasta",
         "waiting for permission": "À espera de permissão",
+        "choose again":         "Escolher de novo",
+        "browser did not answer":
+            "O navegador não responde. Escolha esta pasta de novo.",
+        "not the same folder":
+            "Escolheu “{{name}}”, não “{{other}}”. Nada mudou: escolha “{{other}}” de novo.",
         "permission denied": "Permissão negada",
         "that file could not be read": "Não foi possível ler esse ficheiro. Pode ter sido movido ou eliminado.",
         "could not be read": "Não foi possível ler",

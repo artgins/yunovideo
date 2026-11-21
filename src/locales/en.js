@@ -88,6 +88,11 @@ const en = {
         "stopping": "Stopping…",
         "stopped": "Stopped before the end of the folder",
         "waiting for permission": "Waiting for permission",
+        "choose again":         "Choose again",
+        "browser did not answer":
+            "The browser did not answer. Choose this folder again.",
+        "not the same folder":
+            "You chose “{{name}}”, not “{{other}}”. Nothing changed: choose “{{other}}” again.",
         "permission denied": "Permission denied",
         "that file could not be read": "That file could not be read. It may have been moved or deleted.",
         "could not be read": "Could not be read",

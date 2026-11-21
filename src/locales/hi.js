@@ -88,6 +88,11 @@ const hi = {
         "stopping": "रोका जा रहा है…",
         "stopped": "फ़ोल्डर पूरा होने से पहले रोक दिया गया",
         "waiting for permission": "अनुमति की प्रतीक्षा",
+        "choose again":         "फिर से चुनें",
+        "browser did not answer":
+            "ब्राउज़र जवाब नहीं दे रहा। यह फ़ोल्डर फिर से चुनें।",
+        "not the same folder":
+            "आपने “{{name}}” चुना, “{{other}}” नहीं। कुछ नहीं बदला: “{{other}}” फिर से चुनें।",
         "permission denied": "अनुमति अस्वीकृत",
         "that file could not be read": "वह फ़ाइल पढ़ी नहीं जा सकी। हो सकता है उसे हटाया या स्थानांतरित किया गया हो।",
         "could not be read": "पढ़ी नहीं जा सकी",

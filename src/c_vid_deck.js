@@ -53,7 +53,7 @@ import {
     clear_notice, find_uid, has_library, store_deck, NOTICE_I18N_KEYS,
 } from "./video_store.js";
 import {
-    subscribe_sources, pending_authorisation, authorize_all,
+    subscribe_sources, pending_authorisation, authorize_all, repick,
 } from "./sources_store.js";
 import {save_queue_as} from "./playlists_store.js";
 import {subscribe_stats, watched_fraction} from "./stats_store.js";
@@ -554,7 +554,19 @@ function paint_bars(gobj)
     /*  Chrome gives the folder back across a launch but not the
         permission on it. The button goes where the user already is. */
     let pending = pending_authorisation();
-    if(pending.length) {
+    /*  A browser that did not answer the permission check gets the
+        folder picker instead (repick): Authorise did nothing there.
+        One folder per tap, the one named, because the picker returns
+        one folder. */
+    let hung = pending.find((p) => p.hang);
+    if(hung) {
+        $b.appendChild(bar("VID_PENDBAR",
+            ["span", {i18n: "browser did not answer"}, t("browser did not answer")],
+            ["span", {class: "VID_AUTHBAR_WHICH"}, hung.name],
+            [["button", {class: "VID_QBTN VID_REPICK button is-primary", type: "button",
+                         i18n: "choose again", ...named("choose again")}, t("choose again"),
+                {click: () => gobj_send_event(gobj, "EV_REPICK", {source_id: hung.id}, gobj)}]]));
+    } else if(pending.length) {
         $b.appendChild(bar("VID_PENDBAR",
             ["span", {i18n: "folders need authorising"}, t("folders need authorising")],
             ["span", {class: "VID_AUTHBAR_WHICH"}, pending.map((p) => p.name).join(" · ")],
@@ -994,6 +1006,14 @@ function ac_authorize(gobj, event, kw, src)
     return 0;
 }
 
+/*  Called inside the click (gobj_send_event is synchronous), so the
+    folder picker still has the user's gesture. */
+function ac_repick(gobj, event, kw, src)
+{
+    repick(kw.source_id);
+    return 0;
+}
+
 /*  The new build is loaded by a reload, and the reload is ours: it waits
     for the deck to be written, for at most a second and a half. */
 function ac_reload(gobj, event, kw, src)
@@ -1088,6 +1108,7 @@ function create_gclass(gclass_name)
         ["EV_CARD_ACTION",      ac_card_action,     null],
         ["EV_CLEAR_NOTICE",     ac_clear_notice,    null],
         ["EV_AUTHORIZE",        ac_authorize,       null],
+        ["EV_REPICK",           ac_repick,          null],
         ["EV_RELOAD",           ac_reload,          null],
         ["EV_RELOAD_NOW",       ac_reload_now,      null],
         ["EV_INSTALL",          ac_install,         null],
@@ -1146,6 +1167,7 @@ function create_gclass(gclass_name)
         ["EV_CARD_ACTION",      0],
         ["EV_CLEAR_NOTICE",     0],
         ["EV_AUTHORIZE",        0],
+        ["EV_REPICK",           0],
         ["EV_RELOAD",           0],
         ["EV_RELOAD_NOW",       0],
         ["EV_INSTALL",          0],
