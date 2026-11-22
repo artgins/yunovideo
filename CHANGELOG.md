@@ -4,6 +4,13 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.37 — 2026-11-22
+
+- gobj-ui `^7.31.8` 7.31.8. `fmt_date_time()` keeps one formatter for each language and zone. One key
+  typed in the filter of a table of 10 000 rows took 350 ms, and now takes 16 ms. A click on
+  an edge of the JSON graph draws only that edge and its two cards. Also `@yuneta/gobj-js` `^7.31.0`, i18next `^27.2.3` and playwright `^1.65.1`. No change of
+  code here. Tests green, deployed.
+
 ## 1.0.36 — 2026-11-21
 
 - "Add folder" with the folder that is waiting for its permission takes the place of the
