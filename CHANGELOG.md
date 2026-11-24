@@ -4,6 +4,13 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.38 — 2026-11-24
+
+- gobj-ui `^7.32.0` 7.32.0. The treedb topics view shows the topics in alphabetical order:
+  the cards, the tabs and the site map. The system topics (`__*__`) come first. Up to
+  7.31.8 it used the order of the `descs` answer, which changes from one load to the next.
+  No change of code here. Tests green, deployed.
+
 ## 1.0.37 — 2026-11-22
 
 - gobj-ui `^7.31.8` 7.31.8. `fmt_date_time()` keeps one formatter for each language and zone. One key
