@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.41 — 2026-11-25
+
+- gobj-ui `^7.32.6`. Every icon is 1em tall: the language, theme, bug and site map icons of
+  the bar were drawn smaller than the square ones, and now have the height of the others.
+  The paginator of a table takes one line on a phone. This app has no table.
+
 ## 1.0.40 — 2026-11-25
 
 - gobj-ui `^7.32.5`. The row count of a table takes the plural of its number. This app has
