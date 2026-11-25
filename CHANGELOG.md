@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.39 — 2026-11-25
+
+- gobj-ui `^7.32.4`. A table rule for the admin views (a filter on every column, the
+  paginator always, the toolbar in one row), and the module `yui_table_standard.js` that
+  applies it. This app has no table, so nothing changes on its pages.
+
 ## 1.0.38 — 2026-11-24
 
 - gobj-ui `^7.32.0` 7.32.0. The treedb topics view shows the topics in alphabetical order:
