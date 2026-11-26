@@ -4,6 +4,11 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.44 — 2026-11-26
+
+- gobj-ui `^7.32.10`. The json viewer of the library folds its tree one level at a time.
+  This app shows no json viewer; the range follows the library.
+
 ## 1.0.43 — 2026-11-26
 
 - gobj-ui `^7.32.9`. The icons of a window's title bar (the title's, minimize, maximize,
