@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.43 — 2026-11-26
+
+- gobj-ui `^7.32.9`. The icons of a window's title bar (the title's, minimize, maximize,
+  close) and of a dialog's header (back, close) are 20px, the size of the toolbar icons.
+  No header changes its height.
+
 ## 1.0.42 — 2026-11-26
 
 - gobj-ui `^7.32.8`. The icons of the menu entries and of the tabs are 20px, the size of the
