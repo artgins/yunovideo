@@ -25,6 +25,13 @@
                 "zone": "center",
                 "default_route": "/player"
             }
+        },
+        "routes": {
+            "/preferences": {
+                "stage": "main",
+                "gclass": "C_YUI_PREFERENCES",
+                "lifecycle": "lazy_destroy"
+            }
         }
     },
     "toolbar": {
@@ -274,6 +281,15 @@
                 "action": {
                     "type": "dropdown",
                     "items": [
+                        {
+                            "id": "more-preferences",
+                            "name": "preferences",
+                            "icon": "yi-sliders",
+                            "action": {
+                                "type": "navigate",
+                                "route": "/preferences"
+                            }
+                        },
                         {
                             "id": "more-developer",
                             "name": "developer",

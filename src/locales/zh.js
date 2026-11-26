@@ -18,6 +18,13 @@ const zh = {
     translation: {
         /*  ---- words shared with yunomúsica, and the keys gobj-ui asks for ---- */
         "player": "播放器",
+        "preferences": "偏好设置",
+        "appearance": "外观",
+        "light theme": "浅色主题",
+        "dark theme": "深色主题",
+        "stacked strips": "堆叠标签条",
+        "back to parent": "返回上一级",
+        "breadcrumb": "面包屑导航",
         "library": "媒体库",
         "sources": "来源",
         "lists": "列表",

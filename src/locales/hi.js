@@ -18,6 +18,13 @@ const hi = {
     translation: {
         /*  ---- words shared with yunomúsica, and the keys gobj-ui asks for ---- */
         "player": "प्लेयर",
+        "preferences": "प्राथमिकताएँ",
+        "appearance": "रूप",
+        "light theme": "हल्की थीम",
+        "dark theme": "गहरी थीम",
+        "stacked strips": "परतदार पट्टियाँ",
+        "back to parent": "ऊपर के स्तर पर वापस",
+        "breadcrumb": "ब्रेडक्रम्ब",
         "library": "लाइब्रेरी",
         "sources": "स्रोत",
         "lists": "सूचियाँ",

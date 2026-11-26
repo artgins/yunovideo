@@ -18,6 +18,13 @@ const es = {
     translation: {
         /*  ---- words shared with yunomúsica, and the keys gobj-ui asks for ---- */
         "player": "Reproductor",
+        "preferences": "Preferencias",
+        "appearance": "Apariencia",
+        "light theme": "Tema claro",
+        "dark theme": "Tema oscuro",
+        "stacked strips": "Tiras apiladas",
+        "back to parent": "Volver al padre",
+        "breadcrumb": "Miga de pan",
         "library": "Biblioteca",
         "sources": "Fuentes",
         "lists": "Listas",

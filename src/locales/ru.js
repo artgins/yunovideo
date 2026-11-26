@@ -18,6 +18,13 @@ const ru = {
     translation: {
         /*  ---- words shared with yunomúsica, and the keys gobj-ui asks for ---- */
         "player": "Проигрыватель",
+        "preferences": "Настройки",
+        "appearance": "Внешний вид",
+        "light theme": "Светлая тема",
+        "dark theme": "Тёмная тема",
+        "stacked strips": "Полосы стопкой",
+        "back to parent": "Назад на уровень выше",
+        "breadcrumb": "Цепочка навигации",
         "library": "Библиотека",
         "sources": "Источники",
         "lists": "Списки",

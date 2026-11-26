@@ -35,6 +35,7 @@ import {
 } from "@yuneta/gobj-js";
 
 import {register_c_yui_shell} from "@yuneta/gobj-ui/src/c_yui_shell.js";
+import {register_c_yui_preferences} from "@yuneta/gobj-ui/src/c_yui_preferences.js";
 import {register_c_yui_nav}   from "@yuneta/gobj-ui/src/c_yui_nav.js";
 
 import {register_c_yunovideo}   from "./c_yunovideo.js";
@@ -116,6 +117,7 @@ function main()
     register_c_timer();
 
     register_c_yui_shell();
+    register_c_yui_preferences();
     register_c_yui_nav();
 
     register_c_yunovideo();

@@ -18,6 +18,13 @@ const ja = {
     translation: {
         /*  ---- words shared with yunomúsica, and the keys gobj-ui asks for ---- */
         "player": "プレーヤー",
+        "preferences": "設定",
+        "appearance": "外観",
+        "light theme": "ライトテーマ",
+        "dark theme": "ダークテーマ",
+        "stacked strips": "積み重ねたタブ",
+        "back to parent": "上の階層へ戻る",
+        "breadcrumb": "パンくずリスト",
         "library": "ライブラリ",
         "sources": "ソース",
         "lists": "リスト",

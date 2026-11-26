@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.45 — 2026-11-26
+
+- gobj-ui `^7.32.11`. A Preferences page, the one every app of the library has, under
+  "more" (`/preferences`): Theme, Language (the ten languages, each in its own words) and
+  Navigation. The app has no tree of nodes, so the navigation is kept for the day it has one.
+
 ## 1.0.44 — 2026-11-26
 
 - gobj-ui `^7.32.10`. The json viewer of the library folds its tree one level at a time.

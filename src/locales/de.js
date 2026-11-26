@@ -18,6 +18,13 @@ const de = {
     translation: {
         /*  ---- words shared with yunomúsica, and the keys gobj-ui asks for ---- */
         "player": "Player",
+        "preferences": "Einstellungen",
+        "appearance": "Darstellung",
+        "light theme": "Helles Design",
+        "dark theme": "Dunkles Design",
+        "stacked strips": "Gestapelte Leisten",
+        "back to parent": "Zurück zur Ebene darüber",
+        "breadcrumb": "Brotkrumen",
         "library": "Bibliothek",
         "sources": "Quellen",
         "lists": "Listen",
