@@ -28,7 +28,7 @@ const de = {
         "library": "Bibliothek",
         "sources": "Quellen",
         "lists": "Listen",
-        "theme": "Helles / dunkles Design",
+        "theme": "Design",
         "to dark theme": "Zum dunklen Design wechseln",
         "to light theme": "Zum hellen Design wechseln",
         "colours": "Farbe",

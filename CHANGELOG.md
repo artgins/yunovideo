@@ -4,6 +4,12 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.46 — 2026-11-26
+
+- The key `theme` says "Theme" (in each language), the name of the row of Preferences. It
+  said "Light / dark theme", from the toolbar button, whose title says which theme it
+  switches to anyway (`to light theme`, `to dark theme`).
+
 ## 1.0.45 — 2026-11-26
 
 - gobj-ui `^7.32.11`. A Preferences page, the one every app of the library has, under

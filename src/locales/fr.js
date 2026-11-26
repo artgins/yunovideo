@@ -28,7 +28,7 @@ const fr = {
         "library": "Bibliothèque",
         "sources": "Sources",
         "lists": "Listes",
-        "theme": "Thème clair / sombre",
+        "theme": "Thème",
         "to dark theme": "Passer au thème sombre",
         "to light theme": "Passer au thème clair",
         "colours": "Couleur",

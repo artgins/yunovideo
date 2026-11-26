@@ -28,7 +28,7 @@ const pt = {
         "library": "Biblioteca",
         "sources": "Fontes",
         "lists": "Listas",
-        "theme": "Tema claro / escuro",
+        "theme": "Tema",
         "to dark theme": "Mudar para tema escuro",
         "to light theme": "Mudar para tema claro",
         "colours": "Cor",

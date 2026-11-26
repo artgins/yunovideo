@@ -28,7 +28,7 @@ const ja = {
         "library": "ライブラリ",
         "sources": "ソース",
         "lists": "リスト",
-        "theme": "ライト / ダークテーマ",
+        "theme": "テーマ",
         "to dark theme": "ダークテーマに切り替え",
         "to light theme": "ライトテーマに切り替え",
         "colours": "色",

@@ -28,7 +28,7 @@ const hi = {
         "library": "लाइब्रेरी",
         "sources": "स्रोत",
         "lists": "सूचियाँ",
-        "theme": "हल्की / गहरी थीम",
+        "theme": "थीम",
         "to dark theme": "गहरी थीम पर जाएँ",
         "to light theme": "हल्की थीम पर जाएँ",
         "colours": "रंग",
