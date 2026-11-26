@@ -4,6 +4,17 @@ Each release of `@yuneta/gobj-ui` reaches this app through gobj-ui's deploy
 round, which raises the range and the third number of the app's version, and
 builds, tests and deploys it; the line of each round is written here after it.
 
+## 1.0.47 — 2026-11-26
+
+- Adding loose files (or a folder without the File System Access API) takes a `change`
+  that comes after a `cancel`. Firefox 159 under Playwright 1.65 fires `cancel` and, 10 ms
+  later, `input` and `change` with the files, for one and the same pick. The `cancel`
+  handler took the `change` listener off, so every file was dropped and the source never
+  appeared: the `firefox` test failed, on this release and on the ones before it. A
+  `cancel` now ends the wait (the "preparing" bar) and settles the pick, and the `change`
+  listener stays until it fires or the next pick takes it off.
+- gobj-ui `^7.32.12`: the Preferences page marks a theme chosen on the toolbar.
+
 ## 1.0.46 — 2026-11-26
 
 - The key `theme` says "Theme" (in each language), the name of the row of Preferences. It

@@ -1128,10 +1128,19 @@ function ensure_inputs()
     return $inputs;
 }
 
+/*  The listeners of the last pick, taken off by the next one (see the
+    `cancel` handler below).  */
+let close_last_pick = null;
+
 function pick_with_input(as_dir)
 {
     let inputs = ensure_inputs();
     let el = as_dir ? inputs.dir : inputs.files;
+
+    if(close_last_pick) {
+        close_last_pick();
+        close_last_pick = null;
+    }
 
     return new Promise(function(resolve) {
         /*  Between the user closing the picker and `change` firing, the
@@ -1156,20 +1165,35 @@ function pick_with_input(as_dir)
             }
         }, 400);
         const on_focus = function() {};
+        /*  A `cancel` ends the wait, not the pick: the `change` with the
+            files can still come after it. Firefox 159 under Playwright
+            1.65 fires `cancel` and, 10 ms later, `input` and `change`
+            with the files, for one and the same pick; taking the
+            `change` listener off at the `cancel` dropped every file, and
+            the source never appeared. So the `cancel` stops the
+            "preparing" bar and settles the promise, and the `change`
+            listener stays until it fires or the next pick takes it off
+            (close_last_pick). */
         const cancelled = function() {
             store_trace("sources_store", "picker cancelled");
-            cleanup();
+            stop_waiting();
             resolve("");
         };
-        const cleanup = function() {
+        const stop_waiting = function() {
             clearTimeout(armed);
             window.removeEventListener("focus", on_focus);
             if(S.preparing) {
                 S.preparing = false;
                 emit();
             }
+        };
+        const cleanup = function() {
+            stop_waiting();
             el.removeEventListener("change", done);
             el.removeEventListener("cancel", cancelled);
+            if(close_last_pick === cleanup) {
+                close_last_pick = null;
+            }
         };
         const done = async function() {
             store_trace("sources_store", "picker change", {files: el.files.length});
@@ -1259,6 +1283,7 @@ function pick_with_input(as_dir)
             simply never settles and nothing happens — which is what
             closing the dialog should look like anyway. */
         el.addEventListener("cancel", cancelled);
+        close_last_pick = cleanup;
         el.click();
     });
 }
